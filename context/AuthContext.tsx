@@ -3,21 +3,24 @@ import {
   login as loginAPI,
   register as registerAPI,
 } from "@/hooks/services/auth";
-import * as SecureStore from "expo-secure-store";
 import React, { createContext, useEffect, useState } from "react";
 
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+};
+
 interface AuthContextProps {
-  user: string | null;
-  token: string | null;
+  user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextProps>({
   user: null,
-  token: null,
   loading: true,
   login: async () => false,
   register: async () => false,
@@ -25,67 +28,50 @@ export const AuthContext = createContext<AuthContextProps>({
 });
 
 export const AuthProvider = ({ children }: any) => {
-  const [user, setUser] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load token on startup
+  // Load user info on startup
   useEffect(() => {
     (async () => {
-      const savedToken = await SecureStore.getItemAsync("token");
-      const savedUser = await SecureStore.getItemAsync("email");
-      if (savedToken) {
-        api.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
-        setToken(savedToken);
+      try {
+        const res = await api.get("/auth/me", { withCredentials: true });
+        setUser(res.data.user);
+      } catch {
+        setUser(null);
       }
-      if (savedUser) setUser(savedUser);
       setLoading(false);
     })();
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
-      console.log("Attempting login with", email, password);
       const res = await loginAPI(email, password);
-      console.log("teste", res);
-      await SecureStore.setItemAsync("token", res.accessToken);
-      await SecureStore.setItemAsync("refreshToken", res.refreshToken);
-      await SecureStore.setItemAsync("email", email);
-
-      api.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${res.accessToken}`;
-
-      setToken(res.accessToken);
-      setUser(email);
-
+      setUser(res.user);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
 
-  const register = async (email: string, password: string) => {
+  const register = async (name: string, email: string, password: string) => {
     try {
-      await registerAPI(email, password);
+      await registerAPI(name, email, password);
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync("token");
-    await SecureStore.deleteItemAsync("refreshToken");
-    await SecureStore.deleteItemAsync("email");
+    try {
+      await api.post("/auth/logout", {}, { withCredentials: true });
+    } catch {}
     setUser(null);
-    setToken(null);
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, token, loading, login, logout, register }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
       {children}
     </AuthContext.Provider>
   );

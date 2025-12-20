@@ -1,5 +1,7 @@
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useContext, useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthContext, AuthProvider } from "../context/AuthContext";
 
 function RootNavigation() {
@@ -9,23 +11,28 @@ function RootNavigation() {
 
   useEffect(() => {
     if (loading) return;
-    console.log({ segments });
-    const inAuthGroup = segments[0] === "(auth)";
 
-    if (!user && !inAuthGroup) {
+    // Only redirect to login if not already on login or register
+    const isAuthRoute =
+      segments[0] === "(auth)" &&
+      (segments[1] === "login" || segments[1] === "register");
+    console.log({ user, isAuthRoute });
+    if (!user && !isAuthRoute) {
       router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
-      router.replace("/(protected)/home");
     }
-  }, [segments, user, loading]);
+  }, [segments, user, loading, router]);
 
   return <Slot />;
 }
 
 export default function Layout() {
   return (
-    <AuthProvider>
-      <RootNavigation />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <RootNavigation />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

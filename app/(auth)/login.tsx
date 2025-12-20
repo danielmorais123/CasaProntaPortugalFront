@@ -1,13 +1,23 @@
-import { Link } from "expo-router";
-import { useContext, useEffect, useState } from "react";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useContext, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { AuthContext } from "../../context/AuthContext";
 
 export default function LoginScreen() {
   const { login } = useContext(AuthContext);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -16,59 +26,161 @@ export default function LoginScreen() {
     }
     const ok = await login(email, password);
     if (!ok) setError("Email ou password incorretos.");
+    else router.replace("/");
   };
+
   useEffect(() => {
     if (email && password) setError("");
   }, [email, password]);
+
   return (
-    <View className="flex-1 justify-center px-6 bg-gray-100">
-      <Text className="text-3xl font-bold mb-1 text-center">Bem-vindo 👋</Text>
-      <Text className="text-base text-gray-600 mb-8 text-center">
-        Entre na sua conta
-      </Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <Ionicons name="home-outline" size={56} color="#2563EB" />
+          <Text style={styles.appName}>CasaPronta</Text>
+          <Text style={styles.subtitle}>O cofre digital dos seus imóveis</Text>
+        </View>
 
-      <TextInput
-        placeholder="Email"
-        placeholderTextColor="#999"
-        className={`bg-white p-4 rounded-xl border mb-4 text-base shadow-sm ${
-          !email && error ? "border-red-500 border-2" : "border-gray-300"
-        }`}
-        value={email}
-        onChangeText={setEmail}
-      />
+        {/* Card */}
+        <View style={styles.card}>
+          <TextInput
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+          />
 
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#999"
-        secureTextEntry
-        className={`bg-white p-4 rounded-xl border mb-2 text-base shadow-sm ${
-          !password && error ? "border-red-500 border-2" : "border-gray-300"
-        }`}
-        value={password}
-        onChangeText={setPassword}
-      />
+          <TextInput
+            placeholder="Password"
+            secureTextEntry
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+          />
 
-      {error ? (
-        <Text className="text-red-600 text-center mb-2">{error}</Text>
-      ) : null}
+          {error ? (
+            <Text
+              style={{ color: "#DC2626", textAlign: "center", marginBottom: 8 }}
+            >
+              {error}
+            </Text>
+          ) : null}
 
-      <TouchableOpacity
-        onPress={handleLogin}
-        className="bg-blue-600 py-4 rounded-xl mt-3 shadow-sm"
-      >
-        <Text className="text-center text-white font-semibold text-lg">
-          Entrar
-        </Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={styles.forgot}>
+            <Text style={styles.forgotText}>Esqueceu-se da password?</Text>
+          </TouchableOpacity>
 
-      <Link href="/(auth)/register" asChild>
-        <TouchableOpacity className="mt-6">
-          <Text className="text-center text-gray-700 text-base">
-            Não tem conta?{" "}
-            <Text className="font-bold text-blue-600">Registe-se</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleLogin}>
+            <Text style={styles.primaryButtonText}>Entrar</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.securityText}>
+            🔒 Dados protegidos com encriptação de nível bancário
+          </Text>
+        </View>
+
+        {/* Register */}
+        <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
+          <Text style={styles.registerText}>
+            Ainda não tem conta? <Text style={styles.link}>Criar conta</Text>
           </Text>
         </TouchableOpacity>
-      </Link>
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+
+  appName: {
+    fontSize: 26,
+    fontWeight: "700",
+    marginTop: 12,
+    color: "#0F172A",
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: "#64748B",
+    marginTop: 4,
+    textAlign: "center",
+  },
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 6,
+    marginBottom: 20,
+  },
+
+  input: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
+  forgot: {
+    alignItems: "flex-end",
+    marginBottom: 18,
+  },
+
+  forgotText: {
+    color: "#2563EB",
+    fontSize: 13,
+  },
+
+  primaryButton: {
+    backgroundColor: "#2563EB",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  securityText: {
+    textAlign: "center",
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 16,
+  },
+
+  registerText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#475569",
+  },
+
+  link: {
+    color: "#2563EB",
+    fontWeight: "700",
+  },
+});
