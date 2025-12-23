@@ -31,9 +31,15 @@ export default function RegisterScreen() {
       setError("As passwords não coincidem.");
       return;
     }
-    const ok = await register(fullName, email, password);
-    if (ok) router.push("/(auth)/login");
-    else setError("Email já registado.");
+    const ok = await register(fullName, email, password, confirmPassword);
+    try {
+      await register(fullName, email, password, confirmPassword);
+      router.push("/(auth)/login");
+    } catch (e: any) {
+      setError(
+        e?.response?.data?.message || "Algum erro ocorreu tente mais tarde."
+      );
+    }
   };
 
   useEffect(() => {

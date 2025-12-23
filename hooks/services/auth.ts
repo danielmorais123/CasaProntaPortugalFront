@@ -10,8 +10,15 @@ export const login = async (email: string, password: string) => {
 export const register = async (
   name: string,
   email: string,
-  password: string
+  password: string,
+  confirmPassword: string
 ) => {
-  const response = await api.post("/auth/register", { name, email, password });
+  console.log({ confirmPassword });
+  const response = await api.post("/auth/register", {
+    name,
+    email,
+    password,
+    confirmPassword,
+  });
   return response.data;
 };

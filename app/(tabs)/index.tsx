@@ -1,5 +1,5 @@
 // HomeScreen.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { api } from "@/hooks/services/api";
 import { Property, Alert } from "@/types/models";
 import { useRouter } from "expo-router";
 import { Alert as AlertComponent } from "@/components/Alert";
-
+import { AuthContext } from "@/context/AuthContext";
 // Badge Color based on urgency
 
 type SectionType = "header" | "banner" | "properties" | "alerts";
@@ -28,7 +28,7 @@ const HomeScreen = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const { logout } = useContext(AuthContext);
   const router = useRouter();
   const fetchData = async () => {
     setLoading(true);
@@ -59,7 +59,7 @@ const HomeScreen = () => {
   };
 
   const data: Section[] = [
-    // { type: "header" },
+    { type: "header" },
     { type: "alerts" },
     { type: "banner" },
     { type: "properties" },
@@ -85,6 +85,20 @@ const HomeScreen = () => {
                 style={{ marginRight: 15 }}
               />
               <Ionicons name="person-circle-outline" size={28} />
+              <TouchableOpacity
+                style={{
+                  marginLeft: 15,
+                  backgroundColor: "#2563EB",
+                  paddingVertical: 6,
+                  paddingHorizontal: 14,
+                  borderRadius: 8,
+                }}
+                onPress={logout}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  Logout
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         );

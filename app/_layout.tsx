@@ -13,9 +13,7 @@ function RootNavigation() {
     if (loading) return;
 
     // Only redirect to login if not already on login or register
-    const isAuthRoute =
-      segments[0] === "(auth)" &&
-      (segments[1] === "login" || segments[1] === "register");
+    const isAuthRoute = segments[0] === "(auth)";
     console.log({ user, isAuthRoute });
     if (!user && !isAuthRoute) {
       router.replace("/(auth)/login");

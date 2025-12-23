@@ -15,7 +15,12 @@ interface AuthContextProps {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    confirmPassword: string
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
@@ -54,9 +59,14 @@ export const AuthProvider = ({ children }: any) => {
     }
   };
 
-  const register = async (name: string, email: string, password: string) => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    confirmPassword: string
+  ) => {
     try {
-      await registerAPI(name, email, password);
+      await registerAPI(name, email, password, confirmPassword);
       return true;
     } catch {
       return false;
