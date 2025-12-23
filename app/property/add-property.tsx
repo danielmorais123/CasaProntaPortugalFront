@@ -121,11 +121,8 @@ export default function AddPropertyScreen() {
           title: doc.title,
           propertyId, // use the created propertyId here!
         };
-        console.log({ meta });
         const uploadUrlRes = await api.post("/document/upload-url", meta);
-        console.log({ doc: doc.file.uri });
         const { uploadUrl, s3Key, documentId } = uploadUrlRes.data;
-        console.log({ uploadUrl, s3Key, documentId, data: uploadUrlRes.data });
         // Upload file to S3
         const s3Response = await fetch(uploadUrl, {
           method: "PUT",
@@ -135,11 +132,7 @@ export default function AddPropertyScreen() {
           },
           body: await fetch(doc.file.uri).then((r) => r.blob()),
         });
-        console.log(
-          "S3 upload response:",
-          s3Response.status,
-          await s3Response.text()
-        );
+
         if (!s3Response.ok) {
           throw new Error("S3 upload failed");
         }
