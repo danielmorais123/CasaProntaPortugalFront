@@ -15,14 +15,28 @@ import { DocumentType } from "@/types/models";
 import BottomSheetComponent from "@/components/BottomSheetComponent";
 import { ShareProperty } from "@/components/ShareProperty";
 import BottomSheet from "@gorhom/bottom-sheet";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { deleteProperty } from "@/hooks/services/property";
 
 export default function PropertyDetailScreen() {
   const useRefBottomSheet = useRef<BottomSheet>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const handleOpen = () => {
     useRefBottomSheet.current?.expand();
   };
+
+  const handleDelete = async () => {
+    try {
+      await deleteProperty(id as string);
+      // Optionally show a toast/snackbar here
+      router.push("/"); // Go back to home or properties list
+    } catch (err) {
+      // Optionally show error to user
+      console.error("Erro ao apagar imóvel:", err);
+    }
+  };
+
   // mock data (substituir por API)
   const property = {
     name: "Apartamento Lisboa",
@@ -165,7 +179,11 @@ export default function PropertyDetailScreen() {
         {/* Actions */}
         <View style={styles.actions}>
           <Button title="Editar imóvel" variant="ghost" />
-          <Button title="Apagar imóvel" variant="destructive" />
+          <Button
+            title="Apagar imóvel"
+            variant="destructive"
+            onPress={handleDelete}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
