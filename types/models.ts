@@ -1,25 +1,26 @@
 export enum DocumentType {
-  CadernetaPredial = "CadernetaPredial",
-  CertidaoPermanenteRegistoPredial = "CertidaoPermanenteRegistoPredial",
-  LicencaUtilizacaoOuIsencao = "LicencaUtilizacaoOuIsencao",
-  CertificadoEnergetico = "CertificadoEnergetico",
-  FichaTecnicaHabitacao = "FichaTecnicaHabitacao",
-  PlantasImovelOuCamararias = "PlantasImovelOuCamararias",
-  ProjetoConstrucaoELicencasObra = "ProjetoConstrucaoELicencasObra",
-  ComprovativoPagamentoIMI = "ComprovativoPagamentoIMI",
-  TituloAquisicaoOuEscritura = "TituloAquisicaoOuEscritura",
-  DocumentosCondominio = "DocumentosCondominio",
-  Other = "Other",
+  CadernetaPredial = 0,
+  CertidaoPermanenteRegistoPredial = 1,
+  LicencaUtilizacaoOuIsencao = 2,
+  CertificadoEnergetico = 3,
+  FichaTecnicaHabitacao = 4,
+  PlantasImovelOuCamararias = 5,
+  ProjetoConstrucaoELicencasObra = 6,
+  ComprovativoPagamentoIMI = 7,
+  TituloAquisicaoOuEscritura = 8,
+  DocumentosCondominio = 9,
+  Other = 10,
 }
 
+// DocumentCategory: keep the order and start at 0
 export enum DocumentCategory {
-  Legal = "Legal",
-  Fiscal = "Fiscal",
-  Technical = "Technical",
-  Insurance = "Insurance",
-  Rental = "Rental",
-  Media = "Media",
-  Other = "Other",
+  Legal = 0,
+  Fiscal = 1,
+  Technical = 2,
+  Insurance = 3,
+  Rental = 4,
+  Media = 5,
+  Other = 6,
 }
 
 export enum MediaFileType {
@@ -74,6 +75,7 @@ export interface PropertyPermission {
 export interface Property {
   id: string;
   name: string;
+  streetName: string;
   ownerId: string;
   owner?: User;
   documents: Document[];

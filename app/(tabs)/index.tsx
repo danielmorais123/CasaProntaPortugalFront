@@ -127,6 +127,7 @@ const HomeScreen = () => {
                 borderRadius: 10,
                 alignSelf: "flex-start",
               }}
+              onPress={() => router.push("/property/add-property")}
             >
               <Text style={{ color: "#4A90E2", fontWeight: "bold" }}>
                 Adicionar Imóvel

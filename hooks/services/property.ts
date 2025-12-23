@@ -12,7 +12,7 @@ export const getPropertyById = async (id: string) => {
   return response.data;
 };
 
-export const createProperty = async (property: any) => {
+export const createProperty = async (property: Property) => {
   const response = await api.post<Property>("/property", property);
   return response.data;
 };
