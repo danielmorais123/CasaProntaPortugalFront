@@ -5,7 +5,6 @@ const API_URL = "https://c15gz92t-5084.uks1.devtunnels.ms/api";
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
   withCredentials: true,
 });
 

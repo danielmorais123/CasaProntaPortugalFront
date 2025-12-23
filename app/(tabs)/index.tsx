@@ -310,6 +310,9 @@ const HomeScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
+      <TouchableOpacity onPress={() => router.push("/payments/payment")}>
+        <Text>Payment</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
