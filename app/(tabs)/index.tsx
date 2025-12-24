@@ -84,7 +84,11 @@ const HomeScreen = () => {
                 size={24}
                 style={{ marginRight: 15 }}
               />
-              <Ionicons name="person-circle-outline" size={28} />
+              <Ionicons
+                name="person-circle-outline"
+                size={28}
+                onPress={() => router.push("/profile")}
+              />
               <TouchableOpacity
                 style={{
                   marginLeft: 15,
@@ -295,7 +299,7 @@ const HomeScreen = () => {
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: "#F5F6FA",
+
         marginLeft: 20,
         marginRight: 20,
       }}
@@ -305,7 +309,7 @@ const HomeScreen = () => {
         data={data}
         renderItem={renderItem}
         keyExtractor={(item) => item.type}
-        style={{ flex: 1, backgroundColor: "#F5F6FA" }}
+        style={{ flex: 1 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
