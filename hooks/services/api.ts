@@ -1,10 +1,10 @@
 import axios from "axios";
 
-const API_URL = "https://c15gz92t-5084.uks1.devtunnels.ms/api";
-// 10.0.2.2 = Android Emulator → muda se necessário
+const API_URL = "https://3xd74l54-5084.uks1.devtunnels.ms/api"; // Use your computer's LAN IP// 10.0.2.2 = Android Emulator → muda se necessário
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: 10000,
   withCredentials: true,
 });
 

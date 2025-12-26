@@ -26,3 +26,8 @@ export const me = async () => {
   const response = await api.get("/auth/me");
   return response.data;
 };
+
+export const profileUserLoggedIn = async () => {
+  const response = await api.get("/auth/profile");
+  return response.data;
+};

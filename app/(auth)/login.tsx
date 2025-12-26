@@ -24,7 +24,9 @@ export default function LoginScreen() {
       setError("Por favor, preencha todos os campos.");
       return;
     }
+    console.log("Tentando login com:", email, password);
     const ok = await login(email, password);
+    console.log("Login result:", ok);
     if (!ok) setError("Email ou password incorretos.");
     else router.replace("/");
   };
