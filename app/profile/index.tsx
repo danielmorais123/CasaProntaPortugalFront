@@ -25,9 +25,7 @@ import { Button } from "@/components/Button";
 import { Alert } from "@/components/Alert";
 import { profileUserLoggedIn } from "@/hooks/services/auth";
 import { useRouter } from "expo-router";
-
-/** 🔧 Ajusta para o teu ambiente (ou troca por axios/api client) */
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
+import { api } from "@/hooks/services/api";
 
 type PlanLimits = {
   MaxProperties?: number;
@@ -39,27 +37,25 @@ type PlanLimits = {
 };
 
 type SubscriptionPlanDto = {
-  Code: string;
-  Name: string;
-  PriceMonthly?: number;
-  PriceYearly?: number;
-  IsPopular: boolean;
-  Description?: string;
-  Limits?: PlanLimits;
-  Features: string[];
-  ExcludedFeatures?: string[];
+  code: string;
+  name: string;
+  priceMonthly?: number;
+  priceYearly?: number;
+  isPopular: boolean;
+  description?: string;
+  limits?: PlanLimits;
+  features: string[];
+  excludedFeatures?: string[];
 };
 
 async function getPlans(): Promise<SubscriptionPlanDto[]> {
-  const res = await fetch(`${BASE_URL}/api/subscriptions/plans`);
-  console.log("Fetched plans, status:", res);
-  if (!res.ok) throw new Error("Failed to fetch plans");
-  return res.json();
+  const res = await api.get("/subscriptions/plans");
+  return res.data;
 }
 
 function formatPrice(plan: SubscriptionPlanDto) {
-  const monthly = plan.PriceMonthly ?? 0;
-  const yearly = plan.PriceYearly ?? 0;
+  const monthly = plan.priceMonthly ?? 0;
+  const yearly = plan.priceYearly ?? 0;
 
   if (yearly > 0 && monthly === 0) return `${yearly}€/ano`;
   if (monthly === 0) return "Grátis";
@@ -140,7 +136,6 @@ export default function ProfileScreen() {
       setPlansLoading(true);
       setPlansError(null);
       const data = await getPlans();
-      console.log(data);
       setPlans(data);
     } catch (e) {
       setPlansError("Não foi possível carregar os planos.");
@@ -158,7 +153,7 @@ export default function ProfileScreen() {
     // default selecionado = plano atual, senão o primeiro
     if (!selectedPlanCode) {
       if (currentPlanCode) setSelectedPlanCode(currentPlanCode);
-      else if (plans?.[0]?.Code) setSelectedPlanCode(plans[0].Code);
+      else if (plans?.[0]?.code) setSelectedPlanCode(plans[0].code);
     }
   }, [currentPlanCode, plans, selectedPlanCode]);
 
@@ -180,18 +175,16 @@ export default function ProfileScreen() {
   const closeManage = () => setSubscriptionOpen(false);
 
   const handleConfirmPlanChange = () => {
-    // Aqui normalmente crias checkout session no BE e navegas para payment flow.
-    // Por agora: passa o plan code para /payments/payment
     closeManage();
     router.push({
       pathname: "/payments/payment",
-      params: { plan: selectedPlanCode },
+      params: { planCode: selectedPlanCode }, // <-- use planCode here
     });
   };
 
   const currentPlanFromApi = useMemo(() => {
     const code = planCodeToId(currentPlanCode);
-    return plans.find((p) => planCodeToId(p.Code) === code);
+    return plans.find((p) => planCodeToId(p.code) === code);
   }, [plans, currentPlanCode]);
 
   return (
@@ -238,12 +231,12 @@ export default function ProfileScreen() {
 
                 <View style={styles.planRow}>
                   <Text style={styles.subscriptionInfo}>
-                    {currentPlanFromApi?.Name ?? planName ?? "—"}
+                    {currentPlanFromApi?.name ?? planName ?? "—"}
                   </Text>
                   <View style={styles.currentBadge}>
                     <Text style={styles.currentBadgeText}>ATUAL</Text>
                   </View>
-                  {currentPlanFromApi?.IsPopular ? (
+                  {currentPlanFromApi?.isPopular ? (
                     <View style={styles.popularBadge}>
                       <Text style={styles.popularBadgeText}>POPULAR</Text>
                     </View>
@@ -287,7 +280,12 @@ export default function ProfileScreen() {
             <Button
               variant="ghost"
               title="Gerir Pagamento"
-              onPress={() => router.push("/payments/payment")}
+              onPress={() =>
+                router.push({
+                  pathname: "/payments/payment",
+                  params: { planCode: selectedPlanCode }, // send the selected plan code
+                })
+              }
             />
           </View>
 
@@ -377,7 +375,7 @@ function SubscriptionSheet({
   const selectedNormalized = planCodeToId(selectedPlanCode);
   const selectedIsCurrent =
     selectedNormalized && selectedNormalized === currentNormalized;
-
+  console.log(plans);
   return (
     <Modal
       visible={open}
@@ -417,14 +415,14 @@ function SubscriptionSheet({
             contentContainerStyle={{ paddingBottom: 10, gap: 10 }}
             showsVerticalScrollIndicator={false}
           >
-            {plans.map((p) => {
-              const isSelected = planCodeToId(p.Code) === selectedNormalized;
-              const isCurrent = planCodeToId(p.Code) === currentNormalized;
-
+            {plans.map((p, planIndex) => {
+              const isSelected = planCodeToId(p.code) === selectedNormalized;
+              const isCurrent = planCodeToId(p.code) === currentNormalized;
+              console.log("code", p.code);
               return (
                 <Pressable
-                  key={p.Code}
-                  onPress={() => onSelectPlan(p.Code)}
+                  key={`plan-${planIndex}-${p.code}`}
+                  onPress={() => onSelectPlan(p.code)}
                   style={[
                     sheetStyles.planCard,
                     isSelected && sheetStyles.planCardSelected,
@@ -433,9 +431,9 @@ function SubscriptionSheet({
                   <View style={sheetStyles.planTop}>
                     <View style={{ flex: 1 }}>
                       <View style={sheetStyles.planNameRow}>
-                        <Text style={sheetStyles.planName}>{p.Name}</Text>
+                        <Text style={sheetStyles.planName}>{p.name}</Text>
 
-                        {p.IsPopular ? (
+                        {p.isPopular ? (
                           <View style={sheetStyles.badge}>
                             <Text style={sheetStyles.badgeText}>
                               Mais popular
@@ -455,9 +453,9 @@ function SubscriptionSheet({
                       <Text style={sheetStyles.planPrice}>
                         {formatPrice(p)}
                       </Text>
-                      {p.Description ? (
+                      {p.description ? (
                         <Text style={sheetStyles.planDesc}>
-                          {p.Description}
+                          {p.description}
                         </Text>
                       ) : null}
                     </View>
@@ -475,28 +473,28 @@ function SubscriptionSheet({
                   </View>
 
                   <View style={sheetStyles.metaRow}>
-                    {typeof p.Limits?.MaxProperties === "number" ? (
+                    {typeof p.limits?.MaxProperties === "number" ? (
                       <Text style={sheetStyles.metaText}>
                         Imóveis:{" "}
                         <Text style={sheetStyles.metaStrong}>
-                          {p.Limits.MaxProperties}
+                          {p.limits.MaxProperties}
                         </Text>
                       </Text>
                     ) : null}
 
-                    {typeof p.Limits?.MaxDocuments === "number" ? (
+                    {typeof p.limits?.MaxDocuments === "number" ? (
                       <>
                         <Text style={sheetStyles.metaDot}>•</Text>
                         <Text style={sheetStyles.metaText}>
                           Documentos:{" "}
                           <Text style={sheetStyles.metaStrong}>
-                            {p.Limits.MaxDocuments}
+                            {p.limits.MaxDocuments}
                           </Text>
                         </Text>
                       </>
                     ) : null}
 
-                    {p.Limits?.AiOnUpload ? (
+                    {p.limits?.AiOnUpload ? (
                       <>
                         <Text style={sheetStyles.metaDot}>•</Text>
                         <Text style={sheetStyles.metaAi}>IA</Text>
@@ -507,13 +505,19 @@ function SubscriptionSheet({
                   <View style={{ height: 10 }} />
 
                   <View style={sheetStyles.featureBlock}>
-                    {p.Features?.slice(0, 4).map((f) => (
-                      <Text key={f} style={sheetStyles.feature}>
+                    {p.features?.slice(0, 4).map((f, i) => (
+                      <Text
+                        key={`plan-${planIndex}-feature-${i}-${f}`}
+                        style={sheetStyles.feature}
+                      >
                         ✓ {f}
                       </Text>
                     ))}
-                    {p.ExcludedFeatures?.slice(0, 3).map((f) => (
-                      <Text key={f} style={sheetStyles.excluded}>
+                    {p.excludedFeatures?.slice(0, 3).map((f, i) => (
+                      <Text
+                        key={`plan-${planIndex}-excluded-${i}-${f}`}
+                        style={sheetStyles.excluded}
+                      >
                         – {f}
                       </Text>
                     ))}

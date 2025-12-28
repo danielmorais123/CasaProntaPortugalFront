@@ -4,7 +4,6 @@ const API_URL = "https://3xd74l54-5084.uks1.devtunnels.ms/api"; // Use your comp
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
   withCredentials: true,
 });
 
