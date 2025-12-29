@@ -3,8 +3,8 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-  useRef,
   useState,
+  useContext,
 } from "react";
 import {
   View,
@@ -15,17 +15,17 @@ import {
   RefreshControl,
   Modal,
   Pressable,
-  Animated,
-  Easing,
   Platform,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { Button } from "@/components/Button";
 import { Alert } from "@/components/Alert";
 import { profileUserLoggedIn } from "@/hooks/services/auth";
 import { useRouter } from "expo-router";
-import { api } from "@/hooks/services/api";
+import { getPlans } from "@/hooks/services/subscription";
+import { AuthContext } from "@/context/AuthContext";
 
 type PlanLimits = {
   MaxProperties?: number;
@@ -48,18 +48,12 @@ type SubscriptionPlanDto = {
   excludedFeatures?: string[];
 };
 
-async function getPlans(): Promise<SubscriptionPlanDto[]> {
-  const res = await api.get("/subscriptions/plans");
-  return res.data;
-}
-
 function formatPrice(plan: SubscriptionPlanDto) {
   const monthly = plan.priceMonthly ?? 0;
   const yearly = plan.priceYearly ?? 0;
 
   if (yearly > 0 && monthly === 0) return `${yearly}€/ano`;
   if (monthly === 0) return "Grátis";
-  // 14.99 -> "14,99€ / mês" pt-PT-ish
   const s = String(monthly).replace(".", ",");
   return `${s}€ / mês`;
 }
@@ -68,13 +62,24 @@ function planCodeToId(code?: string) {
   return (code ?? "").toLowerCase();
 }
 
+function Pill({ text }: { text: string }) {
+  return (
+    <View style={styles.pill}>
+      <Text style={styles.pillText}>{text}</Text>
+    </View>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
-  // info de subscrição do perfil (vindo do BE)
   const [planName, setPlanName] = useState("");
   const [maxProperties, setMaxProperties] = useState<number>(0);
   const [maxDocumentsPerProperty, setMaxDocumentsPerProperty] =
@@ -87,20 +92,18 @@ export default function ProfileScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // Plans do endpoint
   const [plans, setPlans] = useState<SubscriptionPlanDto[]>([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [plansError, setPlansError] = useState<string | null>(null);
 
-  // Bottom sheet state
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [selectedPlanCode, setSelectedPlanCode] = useState<string>("");
 
+  const [screenLoading, setScreenLoading] = useState(true);
+
+  const { logout } = useContext(AuthContext);
   const currentPlanCode = useMemo(() => {
-    // tenta inferir pelo planName (FREE/PRO/STARTER etc).
-    // se no teu profile já tens code, usa isso diretamente.
     const normalized = (planName ?? "").trim().toLowerCase();
-    // mapeamento simples; ajusta se precisares
     if (normalized.includes("free")) return "free";
     if (normalized.includes("starter")) return "starter";
     if (normalized.includes("pro")) return "pro";
@@ -110,52 +113,50 @@ export default function ProfileScreen() {
     return "";
   }, [planName]);
 
-  const fetchProfile = useCallback(async () => {
-    try {
-      const res: any = await profileUserLoggedIn();
-      setName(res.name || res.user?.name || "");
-      setEmail(res.email || res.user?.email || "");
+  const currentPlanFromApi = useMemo(() => {
+    const code = planCodeToId(currentPlanCode);
+    return plans.find((p) => planCodeToId(p.code) === code);
+  }, [plans, currentPlanCode]);
 
-      // Ajusta aos teus campos reais:
-      setPlanName(res.planName || res.subscription?.planName || "FREE");
-      setMaxProperties(
-        res.maxProperties ?? res.subscription?.maxProperties ?? 1
-      );
-      setMaxDocumentsPerProperty(
-        res.maxDocumentsPerProperty ??
-          res.subscription?.maxDocumentsPerProperty ??
-          20
-      );
-    } catch {
-      // opcional: alert
-    }
+  const fetchProfile = useCallback(async () => {
+    const res: any = await profileUserLoggedIn();
+    setName(res.name || res.user?.name || "");
+    setEmail(res.email || res.user?.email || "");
+
+    setPlanName(res.planName || res.subscription?.planName || "FREE");
+    setMaxProperties(res.maxProperties ?? res.subscription?.maxProperties ?? 1);
+    setMaxDocumentsPerProperty(
+      res.maxDocumentsPerProperty ??
+        res.subscription?.maxDocumentsPerProperty ??
+        20
+    );
   }, []);
 
   const fetchPlans = useCallback(async () => {
+    setPlansLoading(true);
+    setPlansError(null);
     try {
-      setPlansLoading(true);
-      setPlansError(null);
       const data = await getPlans();
       setPlans(data);
-    } catch (e) {
+    } catch {
       setPlansError("Não foi possível carregar os planos.");
     } finally {
       setPlansLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchProfile();
-    fetchPlans();
+  const boot = useCallback(async () => {
+    setScreenLoading(true);
+    try {
+      await Promise.all([fetchProfile(), fetchPlans()]);
+    } finally {
+      setScreenLoading(false);
+    }
   }, [fetchProfile, fetchPlans]);
 
   useEffect(() => {
-    // default selecionado = plano atual, senão o primeiro
-    if (!selectedPlanCode) {
-      if (currentPlanCode) setSelectedPlanCode(currentPlanCode);
-      else if (plans?.[0]?.code) setSelectedPlanCode(plans[0].code);
-    }
-  }, [currentPlanCode, plans, selectedPlanCode]);
+    boot();
+  }, [boot]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -168,43 +169,102 @@ export default function ProfileScreen() {
       type: "success",
       message: "Perfil atualizado com sucesso!",
     });
-    // TODO: update profile endpoint
+    // TODO: call update profile endpoint
   };
 
-  const openManage = () => setSubscriptionOpen(true);
+  const openManage = () => {
+    if (currentPlanCode) setSelectedPlanCode(currentPlanCode);
+    else if (plans?.[0]?.code) setSelectedPlanCode(plans[0].code);
+    setSubscriptionOpen(true);
+  };
+
   const closeManage = () => setSubscriptionOpen(false);
 
   const handleConfirmPlanChange = () => {
     closeManage();
     router.push({
       pathname: "/payments/payment",
-      params: { planCode: selectedPlanCode }, // <-- use planCode here
+      params: { planCode: selectedPlanCode },
     });
   };
 
-  const currentPlanFromApi = useMemo(() => {
-    const code = planCodeToId(currentPlanCode);
-    return plans.find((p) => planCodeToId(p.code) === code);
-  }, [plans, currentPlanCode]);
+  const aiEnabled = currentPlanFromApi?.limits?.AiOnUpload ?? false;
+
+  if (screenLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View style={styles.center}>
+          <ActivityIndicator />
+          <Text style={styles.loadingText}>A carregar perfil…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {alertMessage && (
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <View style={styles.leftHeader}>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => router.back()}
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={18} />
+            </Pressable>
+
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={18} />
+            </View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {name || "Conta"}
+            </Text>
+            <Text style={styles.headerEmail} numberOfLines={1}>
+              {email || "—"}
+            </Text>
+
+            <View style={styles.headerPills}>
+              <Pill
+                text={`Plano: ${(
+                  currentPlanFromApi?.name ??
+                  planName ??
+                  "FREE"
+                ).toUpperCase()}`}
+              />
+              <Pill text={aiEnabled ? "IA no upload" : "Sem IA"} />
+            </View>
+          </View>
+
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.push("/profile/plans-help")}
+            hitSlop={10}
+          >
+            <Ionicons name="card-outline" size={18} />
+          </Pressable>
+        </View>
+
+        {alertMessage ? (
           <Alert
             variant={
               alertMessage.type === "success" ? "success" : "destructive"
             }
             title={alertMessage.message}
           />
-        )}
+        ) : null}
 
-        <View style={styles.form}>
+        {/* Conta */}
+        <SectionHeader title="Conta" />
+        <View style={styles.card}>
           <Text style={styles.label}>Nome</Text>
           <TextInput
             style={styles.input}
@@ -213,7 +273,7 @@ export default function ProfileScreen() {
             placeholder="Nome completo"
           />
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={[styles.label, { marginTop: 10 }]}>Email</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -223,79 +283,119 @@ export default function ProfileScreen() {
             autoCapitalize="none"
           />
 
-          {/* Subscription Card */}
-          <View style={styles.subscriptionCard}>
-            <View style={styles.subscriptionTopRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.subscriptionTitle}>Subscrição</Text>
+          <View style={{ height: 12 }} />
+          <Button title="Guardar alterações" onPress={handleSave} />
+        </View>
 
-                <View style={styles.planRow}>
-                  <Text style={styles.subscriptionInfo}>
-                    {currentPlanFromApi?.name ?? planName ?? "—"}
-                  </Text>
-                  <View style={styles.currentBadge}>
-                    <Text style={styles.currentBadgeText}>ATUAL</Text>
-                  </View>
-                  {currentPlanFromApi?.isPopular ? (
-                    <View style={styles.popularBadge}>
-                      <Text style={styles.popularBadgeText}>POPULAR</Text>
-                    </View>
-                  ) : null}
+        {/* Subscrição */}
+        <SectionHeader title="Subscrição" />
+        <View style={styles.card}>
+          <View style={styles.subTopRow}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.planRow}>
+                <Text style={styles.planName}>
+                  {currentPlanFromApi?.name ?? planName ?? "—"}
+                </Text>
+
+                <View style={styles.currentBadge}>
+                  <Text style={styles.currentBadgeText}>ATUAL</Text>
                 </View>
 
-                <Text style={styles.subscriptionDetail}>
-                  Preço:{" "}
-                  <Text style={styles.subscriptionDetailStrong}>
-                    {currentPlanFromApi ? formatPrice(currentPlanFromApi) : "—"}
-                  </Text>
-                </Text>
-
-                <Text style={styles.subscriptionDetail}>
-                  Máx. Imóveis:{" "}
-                  <Text style={styles.subscriptionDetailStrong}>
-                    {maxProperties}
-                  </Text>
-                </Text>
-
-                <Text style={styles.subscriptionDetail}>
-                  Docs por Imóvel:{" "}
-                  <Text style={styles.subscriptionDetailStrong}>
-                    {maxDocumentsPerProperty}
-                  </Text>
-                </Text>
-
-                {plansError ? (
-                  <Text style={styles.inlineError}>{plansError}</Text>
+                {currentPlanFromApi?.isPopular ? (
+                  <View style={styles.popularBadge}>
+                    <Text style={styles.popularBadgeText}>POPULAR</Text>
+                  </View>
                 ) : null}
               </View>
 
-              <Pressable onPress={openManage} style={styles.manageIconBtn}>
-                <Text style={styles.manageIconBtnText}>⚙️</Text>
-              </Pressable>
+              <Text style={styles.metaLine}>
+                Preço:{" "}
+                <Text style={styles.metaStrong}>
+                  {currentPlanFromApi ? formatPrice(currentPlanFromApi) : "—"}
+                </Text>
+              </Text>
+
+              <Text style={styles.metaLine}>
+                Máx. imóveis:{" "}
+                <Text style={styles.metaStrong}>{maxProperties}</Text>
+              </Text>
+
+              <Text style={styles.metaLine}>
+                Documentos/Imóvel:{" "}
+                <Text style={styles.metaStrong}>{maxDocumentsPerProperty}</Text>
+              </Text>
+
+              {plansError ? (
+                <Text style={styles.inlineError}>{plansError}</Text>
+              ) : null}
             </View>
 
-            <View style={{ height: 12 }} />
-
-            <Button title="Gerir Subscrição" onPress={openManage} />
-            <Button
-              variant="ghost"
-              title="Gerir Pagamento"
-              onPress={() =>
-                router.push({
-                  pathname: "/payments/payment",
-                  params: { planCode: selectedPlanCode }, // send the selected plan code
-                })
-              }
-            />
+            <Pressable onPress={openManage} style={styles.iconBtn} hitSlop={10}>
+              <Ionicons name="settings-outline" size={18} />
+            </Pressable>
           </View>
 
-          <Button title="Guardar Alterações" onPress={handleSave} />
+          <View style={{ height: 12 }} />
+          <Button title="Gerir subscrição" onPress={openManage} />
           <Button
             variant="ghost"
-            title="Voltar à página inicial"
-            onPress={() => router.push("/")}
+            title="Gerir pagamento"
+            onPress={() =>
+              router.push({
+                pathname: "/payments/payment",
+                params: { planCode: selectedPlanCode },
+              })
+            }
           />
         </View>
+
+        {/* Ações rápidas */}
+        <SectionHeader title="Ações" />
+        <View style={styles.card}>
+          <Pressable
+            style={styles.actionRow}
+            onPress={() => router.push("/property/about")}
+          >
+            <Ionicons name="help-circle-outline" size={18} />
+            <Text style={styles.actionText}>Como funciona (imóveis)</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          <Pressable
+            style={styles.actionRow}
+            onPress={() => router.push("/profile/plans-help")}
+          >
+            <Ionicons name="card-outline" size={18} />
+            <Text style={styles.actionText}>Planos</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          <Pressable
+            style={styles.actionRow}
+            onPress={() => router.push("/notifications")}
+          >
+            <Ionicons name="notifications-outline" size={18} />
+            <Text style={styles.actionText}>Alertas</Text>
+            <Text style={styles.actionChevron}>›</Text>
+          </Pressable>
+        </View>
+
+        {/* Logout */}
+        <SectionHeader title="Sessão" />
+        <View style={styles.card}>
+          <Button title="Terminar sessão" onPress={() => {}} />
+          {/* ^^^ Se o teu Button não suporta onPress simples aqui, troca por Pressable e chama logout */}
+          <Pressable style={styles.logoutRow} onPress={() => logout()}>
+            <Ionicons name="log-out-outline" size={18} />
+            <Text style={styles.logoutRowText}>Sair</Text>
+          </Pressable>
+        </View>
+
+        <View style={{ height: 16 }} />
       </ScrollView>
 
       <SubscriptionSheet
@@ -314,6 +414,7 @@ export default function ProfileScreen() {
 }
 
 /* ---------------------------- Bottom Sheet ---------------------------- */
+/* Mantive o teu SubscriptionSheet praticamente igual, só re-aproveito daqui. */
 
 function SubscriptionSheet({
   open,
@@ -336,224 +437,193 @@ function SubscriptionSheet({
   onConfirm: () => void;
   onOpenBilling: () => void;
 }) {
-  const translateY = useRef(new Animated.Value(520)).current;
-  const backdrop = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (open) {
-      Animated.parallel([
-        Animated.timing(backdrop, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 240,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(backdrop, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 520,
-          duration: 200,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [open, backdrop, translateY]);
-
   const currentNormalized = planCodeToId(currentPlanCode);
   const selectedNormalized = planCodeToId(selectedPlanCode);
   const selectedIsCurrent =
     selectedNormalized && selectedNormalized === currentNormalized;
-  console.log(plans);
+
   return (
     <Modal
       visible={open}
       transparent
-      animationType="none"
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <Animated.View style={[sheetStyles.backdrop, { opacity: backdrop }]}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-      </Animated.View>
-
-      <Animated.View
-        style={[sheetStyles.sheet, { transform: [{ translateY }] }]}
-      >
-        <View style={sheetStyles.grabber} />
-
-        <View style={sheetStyles.header}>
-          <Text style={sheetStyles.title}>Gerir subscrição</Text>
-          <Pressable onPress={onClose} style={sheetStyles.closeBtn}>
-            <Text style={sheetStyles.closeBtnText}>✕</Text>
-          </Pressable>
+      <View style={sheetStyles.modalRoot}>
+        <View style={sheetStyles.backdrop}>
+          <Pressable style={{ flex: 1 }} onPress={onClose} />
         </View>
 
-        <Text style={sheetStyles.subtitle}>
-          Escolhe um plano. A finalização do pagamento é feita no ecrã de
-          faturação.
-        </Text>
+        <View style={sheetStyles.sheet}>
+          <View style={sheetStyles.grabber} />
 
-        {loading ? (
-          <View style={sheetStyles.loadingBox}>
-            <ActivityIndicator />
-            <Text style={sheetStyles.loadingText}>A carregar planos…</Text>
+          <View style={sheetStyles.header}>
+            <Text style={sheetStyles.title}>Gerir subscrição</Text>
+            <Pressable onPress={onClose} style={sheetStyles.closeBtn}>
+              <Text style={sheetStyles.closeBtnText}>✕</Text>
+            </Pressable>
           </View>
-        ) : (
-          <ScrollView
-            style={{ maxHeight: 360 }}
-            contentContainerStyle={{ paddingBottom: 10, gap: 10 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {plans.map((p, planIndex) => {
-              const isSelected = planCodeToId(p.code) === selectedNormalized;
-              const isCurrent = planCodeToId(p.code) === currentNormalized;
-              console.log("code", p.code);
-              return (
-                <Pressable
-                  key={`plan-${planIndex}-${p.code}`}
-                  onPress={() => onSelectPlan(p.code)}
-                  style={[
-                    sheetStyles.planCard,
-                    isSelected && sheetStyles.planCardSelected,
-                  ]}
-                >
-                  <View style={sheetStyles.planTop}>
-                    <View style={{ flex: 1 }}>
-                      <View style={sheetStyles.planNameRow}>
-                        <Text style={sheetStyles.planName}>{p.name}</Text>
 
-                        {p.isPopular ? (
-                          <View style={sheetStyles.badge}>
-                            <Text style={sheetStyles.badgeText}>
-                              Mais popular
-                            </Text>
-                          </View>
-                        ) : null}
+          <Text style={sheetStyles.subtitle}>
+            Escolhe um plano. A finalização do pagamento é feita no ecrã de
+            faturação.
+          </Text>
 
-                        {isCurrent ? (
-                          <View style={sheetStyles.currentPill}>
-                            <Text style={sheetStyles.currentPillText}>
-                              Atual
-                            </Text>
-                          </View>
+          {loading ? (
+            <View style={sheetStyles.loadingBox}>
+              <ActivityIndicator />
+              <Text style={sheetStyles.loadingText}>A carregar planos…</Text>
+            </View>
+          ) : (
+            <ScrollView
+              style={{ maxHeight: 360 }}
+              contentContainerStyle={{ paddingBottom: 10, gap: 10 }}
+            >
+              {plans.map((p, idx) => {
+                const isSelected = planCodeToId(p.code) === selectedNormalized;
+                const isCurrent = planCodeToId(p.code) === currentNormalized;
+
+                return (
+                  <Pressable
+                    key={`plan-${idx}-${p.code}`}
+                    onPress={() => onSelectPlan(p.code)}
+                    style={[
+                      sheetStyles.planCard,
+                      isSelected && sheetStyles.planCardSelected,
+                    ]}
+                  >
+                    <View style={sheetStyles.planTop}>
+                      <View style={{ flex: 1 }}>
+                        <View style={sheetStyles.planNameRow}>
+                          <Text style={sheetStyles.planName}>{p.name}</Text>
+
+                          {p.isPopular ? (
+                            <View style={sheetStyles.badge}>
+                              <Text style={sheetStyles.badgeText}>
+                                Mais popular
+                              </Text>
+                            </View>
+                          ) : null}
+
+                          {isCurrent ? (
+                            <View style={sheetStyles.currentPill}>
+                              <Text style={sheetStyles.currentPillText}>
+                                Atual
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+
+                        <Text style={sheetStyles.planPrice}>
+                          {formatPrice(p)}
+                        </Text>
+                        {p.description ? (
+                          <Text style={sheetStyles.planDesc}>
+                            {p.description}
+                          </Text>
                         ) : null}
                       </View>
 
-                      <Text style={sheetStyles.planPrice}>
-                        {formatPrice(p)}
-                      </Text>
-                      {p.description ? (
-                        <Text style={sheetStyles.planDesc}>
-                          {p.description}
-                        </Text>
-                      ) : null}
+                      <View
+                        style={[
+                          sheetStyles.radioOuter,
+                          isSelected && sheetStyles.radioOuterSelected,
+                        ]}
+                      >
+                        {isSelected ? (
+                          <View style={sheetStyles.radioInner} />
+                        ) : null}
+                      </View>
                     </View>
 
-                    <View
-                      style={[
-                        sheetStyles.radioOuter,
-                        isSelected && sheetStyles.radioOuterSelected,
-                      ]}
-                    >
-                      {isSelected ? (
-                        <View style={sheetStyles.radioInner} />
-                      ) : null}
-                    </View>
-                  </View>
-
-                  <View style={sheetStyles.metaRow}>
-                    {typeof p.limits?.MaxProperties === "number" ? (
-                      <Text style={sheetStyles.metaText}>
-                        Imóveis:{" "}
-                        <Text style={sheetStyles.metaStrong}>
-                          {p.limits.MaxProperties}
-                        </Text>
-                      </Text>
-                    ) : null}
-
-                    {typeof p.limits?.MaxDocuments === "number" ? (
-                      <>
-                        <Text style={sheetStyles.metaDot}>•</Text>
+                    <View style={sheetStyles.metaRow}>
+                      {typeof p.limits?.MaxProperties === "number" ? (
                         <Text style={sheetStyles.metaText}>
-                          Documentos:{" "}
+                          Imóveis:{" "}
                           <Text style={sheetStyles.metaStrong}>
-                            {p.limits.MaxDocuments}
+                            {p.limits.MaxProperties}
                           </Text>
                         </Text>
-                      </>
-                    ) : null}
+                      ) : null}
 
-                    {p.limits?.AiOnUpload ? (
-                      <>
-                        <Text style={sheetStyles.metaDot}>•</Text>
-                        <Text style={sheetStyles.metaAi}>IA</Text>
-                      </>
-                    ) : null}
-                  </View>
+                      {typeof p.limits?.MaxDocuments === "number" ? (
+                        <>
+                          <Text style={sheetStyles.metaDot}>•</Text>
+                          <Text style={sheetStyles.metaText}>
+                            Documentos:{" "}
+                            <Text style={sheetStyles.metaStrong}>
+                              {p.limits.MaxDocuments}
+                            </Text>
+                          </Text>
+                        </>
+                      ) : null}
 
-                  <View style={{ height: 10 }} />
+                      {p.limits?.AiOnUpload ? (
+                        <>
+                          <Text style={sheetStyles.metaDot}>•</Text>
+                          <Text style={sheetStyles.metaAi}>IA</Text>
+                        </>
+                      ) : null}
+                    </View>
 
-                  <View style={sheetStyles.featureBlock}>
-                    {p.features?.slice(0, 4).map((f, i) => (
-                      <Text
-                        key={`plan-${planIndex}-feature-${i}-${f}`}
-                        style={sheetStyles.feature}
-                      >
-                        ✓ {f}
-                      </Text>
-                    ))}
-                    {p.excludedFeatures?.slice(0, 3).map((f, i) => (
-                      <Text
-                        key={`plan-${planIndex}-excluded-${i}-${f}`}
-                        style={sheetStyles.excluded}
-                      >
-                        – {f}
-                      </Text>
-                    ))}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
+                    <View style={{ height: 10 }} />
 
-        <View style={sheetStyles.actions}>
-          <Pressable onPress={onOpenBilling} style={sheetStyles.linkBtn}>
-            <Text style={sheetStyles.linkBtnText}>Gerir faturação</Text>
-          </Pressable>
+                    <View style={sheetStyles.featureBlock}>
+                      {p.features?.slice(0, 4).map((f, i) => (
+                        <Text
+                          key={`plan-${idx}-f-${i}`}
+                          style={sheetStyles.feature}
+                        >
+                          ✓ {f}
+                        </Text>
+                      ))}
+                      {p.excludedFeatures?.slice(0, 3).map((f, i) => (
+                        <Text
+                          key={`plan-${idx}-x-${i}`}
+                          style={sheetStyles.excluded}
+                        >
+                          - {f}
+                        </Text>
+                      ))}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
 
-          <View style={{ height: 10 }} />
+          <View style={sheetStyles.actions}>
+            <Pressable onPress={onOpenBilling} style={sheetStyles.linkBtn}>
+              <Text style={sheetStyles.linkBtnText}>Gerir faturação</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onConfirm}
-            disabled={loading || !selectedPlanCode || selectedIsCurrent}
-            style={[
-              sheetStyles.primaryBtn,
-              (loading || !selectedPlanCode || selectedIsCurrent) &&
-                sheetStyles.primaryBtnDisabled,
-            ]}
-          >
-            <Text style={sheetStyles.primaryBtnText}>
-              {selectedIsCurrent ? "Já estás neste plano" : "Continuar"}
+            <View style={{ height: 10 }} />
+
+            <Pressable
+              onPress={onConfirm}
+              disabled={
+                loading ||
+                !Boolean(selectedPlanCode) ||
+                Boolean(selectedIsCurrent)
+              }
+              style={[
+                sheetStyles.primaryBtn,
+                (loading || !selectedPlanCode || selectedIsCurrent) &&
+                  sheetStyles.primaryBtnDisabled,
+              ]}
+            >
+              <Text style={sheetStyles.primaryBtnText}>
+                {selectedIsCurrent ? "Já estás neste plano" : "Continuar"}
+              </Text>
+            </Pressable>
+
+            <Text style={sheetStyles.footnote}>
+              Ao continuar, vais para o ecrã de pagamento com o plano
+              selecionado.
             </Text>
-          </Pressable>
-
-          <Text style={sheetStyles.footnote}>
-            Ao continuar, vais para o ecrã de pagamento com o plano selecionado.
-          </Text>
+          </View>
         </View>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
@@ -561,56 +631,83 @@ function SubscriptionSheet({
 /* ------------------------------- Styles ------------------------------- */
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: "#F8FAFC",
+  safe: { flex: 1, backgroundColor: "#fff" },
+  container: { padding: 16, paddingBottom: 24 },
+
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  loadingText: { color: "#666", fontWeight: "800" },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
   },
-  form: {
-    marginBottom: 30,
-    display: "flex",
+  leftHeader: {
+    flexDirection: "column",
     gap: 10,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#475569",
-    marginBottom: 6,
-    marginTop: 10,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#F2F2F2",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  input: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#0F172A",
+  headerName: { fontSize: 18, fontWeight: "900" },
+  headerEmail: { marginTop: 2, fontSize: 12, color: "#666", fontWeight: "700" },
+  headerPills: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    flexWrap: "wrap",
   },
 
-  subscriptionCard: {
-    backgroundColor: "#FFFFFF",
+  pill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#F2F2F2",
+  },
+  pillText: { fontSize: 12, fontWeight: "800", color: "#111" },
+
+  iconBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 16,
-    marginVertical: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: "#F2F2F2",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  subscriptionTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  subscriptionTitle: {
+
+  sectionTitle: {
+    marginTop: 14,
+    marginBottom: 10,
     fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 6,
-    color: "#2563EB",
+    fontWeight: "900",
   },
+
+  card: {
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#fff",
+  },
+
+  label: { fontSize: 12, fontWeight: "900", color: "#111", marginBottom: 6 },
+  input: {
+    backgroundColor: "#F7F7F7",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: "#111",
+  },
+
+  subTopRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+
   planRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -618,20 +715,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 6,
   },
-  subscriptionInfo: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-  subscriptionDetail: {
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 2,
-  },
-  subscriptionDetailStrong: {
-    color: "#0F172A",
-    fontWeight: "800",
-  },
+  planName: { fontSize: 16, fontWeight: "900", color: "#111" },
+
   currentBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -640,11 +725,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#A7F3D0",
   },
-  currentBadgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#047857",
-  },
+  currentBadgeText: { fontSize: 11, fontWeight: "900", color: "#047857" },
+
   popularBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -653,35 +735,48 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#BFDBFE",
   },
-  popularBadgeText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#1D4ED8",
-  },
-  manageIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  manageIconBtnText: {
-    fontSize: 16,
-  },
+  popularBadgeText: { fontSize: 11, fontWeight: "900", color: "#1D4ED8" },
+
+  metaLine: { fontSize: 13, color: "#666", marginBottom: 2, lineHeight: 18 },
+  metaStrong: { color: "#111", fontWeight: "900" },
+
   inlineError: {
     marginTop: 8,
     fontSize: 12,
     color: "#B91C1C",
-    fontWeight: "600",
+    fontWeight: "800",
   },
+
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+  },
+  actionText: { flex: 1, fontSize: 13, fontWeight: "900", color: "#111" },
+  actionChevron: { fontSize: 18, fontWeight: "900", color: "#999" },
+  divider: { height: 1, backgroundColor: "#F0F0F0" },
+
+  logoutRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#111",
+    justifyContent: "center",
+  },
+  logoutRowText: { color: "#fff", fontWeight: "900" },
 });
 
 const sheetStyles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#0B1220",
+    opacity: 0.6,
   },
+  modalRoot: { flex: 1, justifyContent: "flex-end" },
   sheet: {
     position: "absolute",
     left: 0,
@@ -711,27 +806,20 @@ const sheetStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
+  title: { fontSize: 18, fontWeight: "900", color: "#111" },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#F2F2F2",
   },
-  closeBtnText: {
-    fontSize: 16,
-    color: "#0F172A",
-  },
+  closeBtnText: { fontSize: 16, color: "#111" },
   subtitle: {
     marginTop: 6,
     marginBottom: 12,
-    color: "#64748B",
+    color: "#666",
     fontSize: 13,
     lineHeight: 18,
   },
@@ -740,56 +828,32 @@ const sheetStyles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EAEAEA",
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     gap: 10,
   },
-  loadingText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "600",
-  },
+  loadingText: { fontSize: 12, color: "#666", fontWeight: "800" },
 
   planCard: {
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#EAEAEA",
     borderRadius: 16,
     padding: 14,
     backgroundColor: "#FFFFFF",
   },
-  planCardSelected: {
-    borderColor: "#2563EB",
-    backgroundColor: "#F8FAFF",
-  },
-  planTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
+  planCardSelected: { borderColor: "#111", backgroundColor: "#FAFAFA" },
+  planTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+
   planNameRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
   },
-  planName: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
-  planPrice: {
-    marginTop: 2,
-    fontSize: 13,
-    color: "#0F172A",
-    fontWeight: "800",
-  },
-  planDesc: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#64748B",
-    lineHeight: 16,
-  },
+  planName: { fontSize: 15, fontWeight: "900", color: "#111" },
+  planPrice: { marginTop: 2, fontSize: 13, color: "#111", fontWeight: "900" },
+  planDesc: { marginTop: 4, fontSize: 12, color: "#666", lineHeight: 16 },
 
   badge: {
     paddingHorizontal: 10,
@@ -799,11 +863,7 @@ const sheetStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#BFDBFE",
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#1D4ED8",
-  },
+  badgeText: { fontSize: 11, fontWeight: "900", color: "#1D4ED8" },
   currentPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -812,11 +872,7 @@ const sheetStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#A7F3D0",
   },
-  currentPillText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#047857",
-  },
+  currentPillText: { fontSize: 11, fontWeight: "900", color: "#047857" },
 
   radioOuter: {
     width: 22,
@@ -828,14 +884,12 @@ const sheetStyles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 2,
   },
-  radioOuterSelected: {
-    borderColor: "#2563EB",
-  },
+  radioOuterSelected: { borderColor: "#111" },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 999,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#111",
   },
 
   metaRow: {
@@ -845,74 +899,32 @@ const sheetStyles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
-  metaText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "700",
-  },
-  metaStrong: {
-    color: "#0F172A",
-    fontWeight: "900",
-  },
-  metaDot: {
-    color: "#CBD5E1",
-    fontWeight: "900",
-  },
-  metaAi: {
-    fontSize: 12,
-    color: "#2563EB",
-    fontWeight: "900",
-  },
+  metaText: { fontSize: 12, color: "#666", fontWeight: "800" },
+  metaStrong: { color: "#111", fontWeight: "900" },
+  metaDot: { color: "#CBD5E1", fontWeight: "900" },
+  metaAi: { fontSize: 12, color: "#111", fontWeight: "900" },
 
-  featureBlock: {
-    gap: 6,
-  },
-  feature: {
-    fontSize: 12,
-    color: "#334155",
-    fontWeight: "600",
-    lineHeight: 16,
-  },
-  excluded: {
-    fontSize: 12,
-    color: "#94A3B8",
-    fontWeight: "600",
-    lineHeight: 16,
-  },
+  featureBlock: { gap: 6 },
+  feature: { fontSize: 12, color: "#333", fontWeight: "700", lineHeight: 16 },
+  excluded: { fontSize: 12, color: "#999", fontWeight: "700", lineHeight: 16 },
 
-  actions: {
-    marginTop: 12,
-  },
+  actions: { marginTop: 12 },
   linkBtn: {
     alignSelf: "flex-start",
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+    backgroundColor: "#F2F2F2",
   },
-  linkBtnText: {
-    color: "#0F172A",
-    fontWeight: "800",
-    fontSize: 12,
-  },
+  linkBtnText: { color: "#111", fontWeight: "900", fontSize: 12 },
   primaryBtn: {
     height: 48,
     borderRadius: 14,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#111",
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBtnDisabled: {
-    opacity: 0.55,
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-  footnote: {
-    marginTop: 10,
-    fontSize: 11,
-    color: "#94A3B8",
-    lineHeight: 16,
-  },
+  primaryBtnDisabled: { opacity: 0.55 },
+  primaryBtnText: { color: "#FFFFFF", fontWeight: "900" },
+  footnote: { marginTop: 10, fontSize: 11, color: "#999", lineHeight: 16 },
 });

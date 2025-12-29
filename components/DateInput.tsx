@@ -1,5 +1,5 @@
 // components/ui/DateInput.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, Dispatch, SetStateAction } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,17 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 
+type DateInputValue = Date | string | null;
+
+type DateInputOnChange =
+  | ((date: Date | string | null) => void)
+  | Dispatch<SetStateAction<Date | string | null>>;
+
 type DateInputProps = {
   label?: string;
-  value?: Date | null;
+  value?: DateInputValue;
   placeholder?: string;
-  onChange: (date: Date) => void;
+  onChange: DateInputOnChange;
   isRequired?: boolean;
   minDate?: Date;
 };
@@ -33,15 +39,24 @@ export function DateInput({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Convert value to Date if it's a string
+  const dateValue: Date | null = useMemo(() => {
+    return typeof value === "string"
+      ? value
+        ? new Date(value)
+        : null
+      : value ?? null;
+  }, [value]);
+
   const validation = useMemo(() => {
-    if (!value) {
+    if (!dateValue) {
       if (isRequired) {
         return { status: "error", message: "Campo obrigatório" };
       }
       return { status: "default" };
     }
 
-    if (minDate && value < minDate) {
+    if (minDate && dateValue < minDate) {
       return {
         status: "error",
         message: "A data não pode ser no passado",
@@ -49,13 +64,24 @@ export function DateInput({
     }
 
     return { status: "valid" };
-  }, [value, isRequired, minDate]);
+  }, [dateValue, isRequired, minDate]);
 
-  const formattedDate = value ? value.toLocaleDateString("pt-PT") : placeholder;
+  const formattedDate = dateValue
+    ? dateValue.toLocaleDateString("pt-PT")
+    : placeholder;
 
   const handleChange = (_: any, selectedDate?: Date) => {
     if (Platform.OS !== "ios") setShow(false);
-    if (selectedDate) onChange(selectedDate);
+    if (selectedDate) {
+      // If parent expects a string, pass ISO string, else pass Date
+      if (typeof value === "string") {
+        onChange(selectedDate.toISOString().slice(0, 10));
+      } else {
+        onChange(selectedDate);
+      }
+    } else {
+      onChange(null);
+    }
   };
 
   const borderColor = validation.status === "error" ? "#EF4444" : "#E2E8F0";
@@ -74,7 +100,7 @@ export function DateInput({
         onPress={() => setShow(true)}
         activeOpacity={0.8}
       >
-        <Text style={[styles.text, !value && { color: "#94A3B8" }]}>
+        <Text style={[styles.text, !dateValue && { color: "#94A3B8" }]}>
           {formattedDate}
         </Text>
 
@@ -89,7 +115,7 @@ export function DateInput({
       {/* ANDROID */}
       {show && Platform.OS === "android" && (
         <DateTimePicker
-          value={value || today}
+          value={dateValue || today}
           mode="date"
           display="default"
           minimumDate={minDate}
@@ -103,7 +129,7 @@ export function DateInput({
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <DateTimePicker
-                value={value || today}
+                value={dateValue || today}
                 mode="date"
                 display="spinner"
                 minimumDate={minDate}

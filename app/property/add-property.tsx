@@ -1,440 +1,721 @@
-import React, { useState, useContext } from "react";
+import React, { useMemo, useState, useEffect, useContext } from "react";
+import { AuthContext } from "@/context/AuthContext";
+import { getAllProperties } from "@/hooks/services/property";
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { Button } from "@/components/Button";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { DocumentType, DocumentCategory } from "@/types/models";
-import * as DocumentPicker from "expo-document-picker";
-import { createProperty } from "@/hooks/services/property";
 import { api } from "@/hooks/services/api";
-import { AuthContext } from "@/context/AuthContext";
+import { Alert } from "@/components/Alert";
+import { Property, Document, PropertyType, DocumentType } from "@/types/models";
+import { useError } from "@/context/ErrorContext"; // <-- import
 
-// Available document types
-const availableDocumentTypes = [
-  { label: "Caderneta Predial", value: DocumentType.CadernetaPredial },
-  {
-    label: "Certidão Permanente Registo Predial",
-    value: DocumentType.CertidaoPermanenteRegistoPredial,
-  },
-  {
-    label: "Licença de Utilização ou Isenção",
-    value: DocumentType.LicencaUtilizacaoOuIsencao,
-  },
-  {
-    label: "Certificado Energético",
-    value: DocumentType.CertificadoEnergetico,
-  },
-  {
-    label: "Ficha Técnica de Habitação",
-    value: DocumentType.FichaTecnicaHabitacao,
-  },
-  {
-    label: "Plantas Imóvel ou Camarárias",
-    value: DocumentType.PlantasImovelOuCamararias,
-  },
-  {
-    label: "Projeto Construção e Licenças de Obra",
-    value: DocumentType.ProjetoConstrucaoELicencasObra,
-  },
-  {
-    label: "Comprovativo Pagamento IMI",
-    value: DocumentType.ComprovativoPagamentoIMI,
-  },
-  {
-    label: "Título Aquisição ou Escritura",
-    value: DocumentType.TituloAquisicaoOuEscritura,
-  },
-  {
-    label: "Documentos Condomínio",
-    value: DocumentType.DocumentosCondominio,
-  },
-  { label: "Outro", value: DocumentType.Other },
-];
+type CreatePropertyPayload = {
+  name: string;
+  streetName: string;
+  type: PropertyType; // ✅ aqui assumo que já tens type (porque disseste que já tens lógica por tipo)
+};
+
+/* ------------------------ Document rules (pluga a tua) ------------------------ */
+/**
+ * Se tu já tens esta lógica noutro ficheiro (ex. /hooks/propertyDocs.ts),
+ * substitui esta função pela tua.
+ */
+function getRecommendedDocTypesForPropertyType(
+  type: PropertyType
+): DocumentType[] {
+  switch (type) {
+    case PropertyType.House:
+    case PropertyType.Apartment:
+      return [
+        DocumentType.TituloAquisicaoOuEscritura,
+        DocumentType.CadernetaPredial,
+        DocumentType.CertidaoPermanenteRegistoPredial,
+        DocumentType.LicencaUtilizacaoOuIsencao,
+        DocumentType.CertificadoEnergetico,
+        DocumentType.ComprovativoPagamentoIMI,
+      ];
+
+    case PropertyType.Land:
+      return [
+        DocumentType.CadernetaPredial,
+        DocumentType.CertidaoPermanenteRegistoPredial,
+        DocumentType.PlantaLocalizacao,
+        DocumentType.LevantamentoTopografico,
+        DocumentType.InformacaoPreviaOuPIP,
+        DocumentType.AlvaraLoteamento,
+      ];
+
+    case PropertyType.Building:
+      return [
+        DocumentType.RegulamentoCondominio,
+        DocumentType.AtasCondominio,
+        DocumentType.SeguroEdificioPartesComuns,
+        DocumentType.RelatorioContasCondominio,
+        DocumentType.MapaQuotasERecibosCondominio,
+        DocumentType.ContratoAdministracaoCondominio,
+        DocumentType.ContratosManutencao,
+      ];
+
+    case PropertyType.Unit:
+      return [
+        DocumentType.TituloAquisicaoOuEscritura,
+        DocumentType.CadernetaPredial,
+        DocumentType.CertidaoPermanenteRegistoPredial,
+        DocumentType.ComprovativoPagamentoIMI,
+      ];
+
+    default:
+      return [];
+  }
+}
+
+function propertyTypeLabel(t: PropertyType) {
+  switch (t) {
+    case PropertyType.House:
+      return "Moradia";
+    case PropertyType.Apartment:
+      return "Apartamento";
+    case PropertyType.Land:
+      return "Terreno";
+    case PropertyType.Building:
+      return "Prédio";
+    case PropertyType.Unit:
+      return "Fração";
+    default:
+      return "Imóvel";
+  }
+}
+
+function docTypeLabel(type: DocumentType) {
+  // Não precisa ser completo — podes expandir quando quiseres
+  switch (type) {
+    case DocumentType.CadernetaPredial:
+      return "Caderneta Predial";
+    case DocumentType.CertidaoPermanenteRegistoPredial:
+      return "Certidão Permanente";
+    case DocumentType.TituloAquisicaoOuEscritura:
+      return "Escritura / Título";
+    case DocumentType.LicencaUtilizacaoOuIsencao:
+      return "Licença / Isenção";
+    case DocumentType.CertificadoEnergetico:
+      return "Certificado Energético";
+    case DocumentType.ComprovativoPagamentoIMI:
+      return "Comprovativo IMI";
+    case DocumentType.ContratoArrendamento:
+      return "Contrato de Arrendamento";
+    case DocumentType.PlantaLocalizacao:
+      return "Planta de Localização";
+    case DocumentType.LevantamentoTopografico:
+      return "Levantamento Topográfico";
+    case DocumentType.InformacaoPreviaOuPIP:
+      return "Informação Prévia / PIP";
+    case DocumentType.AlvaraLoteamento:
+      return "Alvará de Loteamento";
+    case DocumentType.RegulamentoCondominio:
+      return "Regulamento do Condomínio";
+    case DocumentType.AtasCondominio:
+      return "Atas do Condomínio";
+    case DocumentType.SeguroEdificioPartesComuns:
+      return "Seguro do Edifício (Partes Comuns)";
+    case DocumentType.RelatorioContasCondominio:
+      return "Relatório de Contas";
+    case DocumentType.MapaQuotasERecibosCondominio:
+      return "Mapa Quotas & Recibos";
+    case DocumentType.ContratoAdministracaoCondominio:
+      return "Administração do Condomínio";
+    case DocumentType.ContratosManutencao:
+      return "Contratos de Manutenção";
+    default:
+      return "Documento";
+  }
+}
+
+/* -------------------------------- UI bits -------------------------------- */
+
+function Pill({ text }: { text: string }) {
+  return (
+    <View style={styles.pill}>
+      <Text style={styles.pillText}>{text}</Text>
+    </View>
+  );
+}
+
+function TypePill({
+  text,
+  active,
+  onPress,
+}: {
+  text: string;
+  active?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.typePill, active && styles.typePillActive]}
+    >
+      <Text style={[styles.typePillText, active && styles.typePillTextActive]}>
+        {text}
+      </Text>
+    </Pressable>
+  );
+}
+
+function DocChecklistRow({
+  title,
+  done,
+  onUpload,
+}: {
+  title: string;
+  done: boolean;
+  onUpload: () => void;
+}) {
+  return (
+    <View style={styles.checkRow}>
+      <View
+        style={[
+          styles.checkDot,
+          done ? styles.checkDotDone : styles.checkDotTodo,
+        ]}
+      >
+        <Ionicons
+          name={done ? "checkmark" : "add"}
+          size={14}
+          color={done ? "#fff" : "#111"}
+        />
+      </View>
+
+      <Text style={styles.checkTitle} numberOfLines={1}>
+        {title}
+      </Text>
+
+      {done ? (
+        <View style={styles.donePill}>
+          <Text style={styles.donePillText}>OK</Text>
+        </View>
+      ) : (
+        <Pressable onPress={onUpload} style={styles.uploadMiniBtn}>
+          <Text style={styles.uploadMiniBtnText}>Upload</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.row}>
+      <View style={styles.rowIcon}>
+        <Ionicons name="document-text-outline" size={18} />
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {docTypeLabel(d.type)}
+        </Text>
+        <Text style={styles.rowSubtitle} numberOfLines={1}>
+          {d.expirationDate
+            ? `Validade: ${new Date(d.expirationDate).toLocaleDateString(
+                "pt-PT"
+              )}`
+            : "Sem validade"}
+        </Text>
+      </View>
+
+      <Text style={styles.rowChevron}>›</Text>
+    </Pressable>
+  );
+}
+
+/* -------------------------------- Screen -------------------------------- */
 
 export default function AddPropertyScreen() {
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
-  const [documents, setDocuments] = useState<
-    { title: string; type: DocumentType; file?: any }[]
-  >([]);
-  const { user } = useContext(AuthContext); // Get logged-in user
-
   const router = useRouter();
+  const { setError } = useError();
+  const { user } = useContext(AuthContext);
 
-  const documentTypesToPick = availableDocumentTypes.filter(
-    (docType) => !documents.find((d) => d.type === docType.value)
+  const [name, setName] = useState("");
+  const [streetName, setStreetName] = useState("");
+  const [type, setType] = useState<PropertyType>(PropertyType.Apartment);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [, setMessage] = useState<{
+    type: "success" | "destructive";
+    text: string;
+  } | null>(null);
+
+  // New state for property count and limit
+  const [propertyCount, setPropertyCount] = useState<number>(0);
+  const [propertyLimit, setPropertyLimit] = useState<number | undefined>(
+    undefined
   );
 
-  const handleDocumentTitleChange = (type: DocumentType, title: string) => {
-    setDocuments((prev) =>
-      prev.map((doc) => (doc.type === type ? { ...doc, title } : doc))
+  // Fetch property count and limit on mount
+  useEffect(() => {
+    async function fetchLimits() {
+      try {
+        const res = await getAllProperties(1, 1); // Only need total count
+        setPropertyCount(res.total ?? 0);
+      } catch {}
+      setPropertyLimit(
+        user?.plan?.limits?.MaxProperties ?? user?.maxProperties ?? undefined
+      );
+    }
+    fetchLimits();
+  }, [user]);
+
+  const reachedLimit = useMemo(() => {
+    return propertyLimit !== undefined && propertyCount >= propertyLimit;
+  }, [propertyCount, propertyLimit]);
+
+  // Depois de criar
+  const [created, setCreated] = useState<Property | null>(null);
+  const [, setLoadingProperty] = useState(false);
+  const [, setRefreshing] = useState(false);
+
+  const canSubmit = useMemo(() => {
+    return (
+      name.trim().length >= 2 && streetName.trim().length >= 3 && !submitting
     );
-  };
+  }, [name, streetName, submitting]);
 
-  const handleFileUpload = async (type: DocumentType) => {
-    const result = await DocumentPicker.getDocumentAsync({});
-    if (!result.canceled && result.assets?.length) {
-      setDocuments((prev) => {
-        const exists = prev.find((doc) => doc.type === type);
-        if (exists) {
-          return prev.map((doc) =>
-            doc.type === type ? { ...doc, file: result.assets[0] } : doc
-          );
-        }
-        return [...prev, { type, title: "", file: result.assets[0] }];
-      });
-    }
-  };
+  const docs = created?.documents ?? [];
+  const recommended = useMemo(
+    () => getRecommendedDocTypesForPropertyType(type),
+    [type]
+  );
 
-  const handleRemovePickedDocument = (type: DocumentType) => {
-    setDocuments((prev) => prev.filter((doc) => doc.type !== type));
-  };
+  const existingTypes = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
 
-  const handleCreateProperty = async () => {
+  const missingCount = useMemo(() => {
+    return recommended.filter((t) => !existingTypes.has(t)).length;
+  }, [recommended, existingTypes]);
+
+  const fetchCreatedProperty = async (propertyId: string, silent = false) => {
+    if (!silent) setLoadingProperty(true);
     try {
-      // 1. Create property without documents
-      const propertyPayload = {
-        name,
-        streetName: address,
-        ownerId: user?.id,
-        documents: [], // initially empty
-      };
-      const createdProperty = await createProperty(propertyPayload);
-      const propertyId = createdProperty.id;
-
-      // 2. Upload documents to S3 and confirm, now with propertyId
-      const uploadedDocuments = [];
-      for (const doc of documents) {
-        const meta = {
-          fileName: doc.file.name,
-          contentType: doc.file.mimeType || "application/octet-stream",
-          type: doc.type, // or just doc.type if already a number
-          category: DocumentCategory.Other,
-          title: doc.title,
-          propertyId, // use the created propertyId here!
-        };
-        const uploadUrlRes = await api.post("/document/upload-url", meta);
-        const { uploadUrl, s3Key, documentId } = uploadUrlRes.data;
-        // Upload file to S3
-        const s3Response = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": doc.file.mimeType || "application/octet-stream",
-            "x-amz-server-side-encryption": "AES256",
-          },
-          body: await fetch(doc.file.uri).then((r) => r.blob()),
-        });
-
-        if (!s3Response.ok) {
-          throw new Error("S3 upload failed");
-        }
-
-        // Optionally, add a small delay before confirm-upload
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Confirm upload
-        await api.post(`/document/${documentId}/confirm-upload`, {
-          documentId,
-          uploadSuccessful: true,
-        });
-
-        // Collect document info
-        uploadedDocuments.push({
-          type: doc.type,
-          title: doc.title,
-          fileUrl: s3Key,
-          originalFileName: doc.file.name,
-          mimeType: doc.file.mimeType || "application/octet-stream",
-          // Add other metadata as needed
-        });
-      }
-
-      // 3. (Optional) Update property with documents if needed
-      // await api.put(`/property/${propertyId}`, { documents: uploadedDocuments });
-
-      router.push("/");
-    } catch (err) {
-      console.error(err);
-      // Show error to user
+      const res = await api.get(`/property/${propertyId}`);
+      console.log({ res });
+      setCreated(res.data as Property);
+    } catch (error: any) {
+      console.log({ error });
+      setError(error?.response?.data); // <-- set error context
+    } finally {
+      if (!silent) setLoadingProperty(false);
     }
+  };
+
+  const submit = async () => {
+    setMessage(null);
+
+    const payload: CreatePropertyPayload = {
+      name: name.trim(),
+      streetName: streetName.trim(),
+      type,
+    };
+
+    try {
+      setSubmitting(true);
+      const res = await api.post("/property", payload);
+
+      const createdObj = res.data as Property;
+      const newId = createdObj?.id;
+
+      setMessage({
+        type: "success",
+        text: "Imóvel criado! Agora adiciona os documentos essenciais.",
+      });
+
+      if (newId) {
+        // Em vez de navegar já, mantemos nesta página e mostramos “Passo 2”
+        await fetchCreatedProperty(newId, true);
+      } else {
+        setCreated(createdObj ?? null);
+      }
+    } catch (err) {
+      setMessage({
+        type: "destructive",
+        text: err.response.data,
+      });
+      setError(err?.response?.data);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    if (!created?.id) return;
+    setRefreshing(true);
+    await fetchCreatedProperty(created.id, true);
+    setRefreshing(false);
+  };
+
+  const goUpload = (docType?: DocumentType) => {
+    if (!created?.id) return;
+
+    router.push({
+      pathname: "/documents/upload",
+      params: {
+        propertyId: created.id,
+        // ✅ passa o tipo para o upload pré-selecionar (adapta no teu upload screen)
+        documentType: docType ? String(docType) : undefined,
+      },
+    });
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#F5F6FA" }}
-      edges={["top"]}
-    >
-      <View style={styles.container}>
-        {/* Header */}
-        <Text style={styles.title}>Adicionar Imóvel</Text>
-        <Text style={styles.subtitle}>Crie a pasta digital do seu imóvel</Text>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Top bar */}
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.back()}
+            hitSlop={10}
+          >
+            <Ionicons name="arrow-back" size={18} />
+          </Pressable>
 
-        {/* Scrollable Form */}
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.form}>
-            <Text style={styles.label}>Nome do imóvel *</Text>
+          <Text style={styles.topTitle}>Criar imóvel</Text>
+
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.push("/property/about")}
+            hitSlop={10}
+          >
+            <Ionicons name="help-circle-outline" size={18} />
+          </Pressable>
+        </View>
+
+        <Text style={styles.title}>Novo imóvel</Text>
+        <Text style={styles.subtitle}>
+          {reachedLimit
+            ? "Atingiste o limite de imóveis do teu plano. Faz upgrade para adicionar mais."
+            : "Cria o imóvel e depois faz upload dos documentos essenciais (por tipo). Assim ficas logo organizado."}
+        </Text>
+
+        {/* Block creation if limit reached */}
+        {reachedLimit ? (
+          <View style={styles.card}>
+            <Text style={styles.emptyTitle}>Limite atingido</Text>
+            <Text style={styles.emptyText}>
+              O teu plano permite até {propertyLimit} imóveis. Remove um imóvel
+              ou faz upgrade de plano para adicionar mais.
+            </Text>
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => router.push("/profile/plans-help")}
+            >
+              <Text style={styles.primaryBtnText}>Ver planos</Text>
+            </Pressable>
+          </View>
+        ) : (
+          /* Passo 1: Criar */
+          <View style={styles.card}>
+            <Text style={styles.label}>Nome do imóvel</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Ex: Apartamento Lisboa"
               value={name}
               onChangeText={setName}
-            />
-            <Text style={styles.label}>Morada</Text>
-            <TextInput
+              placeholder="Ex.: Apartamento Lisboa"
+              placeholderTextColor="#999"
               style={styles.input}
-              placeholder="Rua, cidade..."
-              value={address}
-              onChangeText={setAddress}
             />
-            {/* Picked documents */}
-            {documents.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
-                <Text style={[styles.label, { marginBottom: 8 }]}>
-                  Documentos selecionados
-                </Text>
 
-                {documents.map((doc) => {
-                  const docLabel =
-                    availableDocumentTypes.find((d) => d.value === doc.type)
-                      ?.label || "Documento";
+            <Text style={[styles.label, { marginTop: 12 }]}>Rua / Morada</Text>
+            <TextInput
+              value={streetName}
+              onChangeText={setStreetName}
+              placeholder="Ex.: Rua X, nº Y, Lisboa"
+              placeholderTextColor="#999"
+              style={styles.input}
+            />
 
-                  return (
-                    <View key={doc.type} style={styles.documentCard}>
-                      {/* Left icon */}
-                      <View style={styles.documentIcon}>
-                        <Ionicons
-                          name="document-text-outline"
-                          size={22}
-                          color="#2563EB"
-                        />
-                      </View>
-
-                      {/* Text content */}
-                      <View style={styles.documentContent}>
-                        <Text style={styles.documentTitle}>
-                          {docLabel}
-                          {doc.type === DocumentType.Other && doc.title
-                            ? ` – ${doc.title}`
-                            : ""}
-                        </Text>
-
-                        {doc.file && (
-                          <Text
-                            style={styles.documentFileName}
-                            numberOfLines={1}
-                          >
-                            {doc.file.name}
-                          </Text>
-                        )}
-                      </View>
-
-                      {/* Remove button */}
-                      <TouchableOpacity
-                        onPress={() => handleRemovePickedDocument(doc.type)}
-                        style={styles.removeButton}
-                      >
-                        <Ionicons name="close" size={18} color="#DC2626" />
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-            {/* Documents Scroll Section */}
-            <Text style={styles.label}>Documentos disponíveis</Text>
-            <View style={styles.documentsContainer}>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 10 }}
-              >
-                {/* Available documents */}
-
-                {documentTypesToPick.map((docType) => (
-                  <View key={docType.value} style={styles.docPicker}>
-                    <Text style={{ flex: 1 }}>{docType.label}</Text>
-
-                    <View style={{ flex: 2, marginLeft: 10 }}>
-                      {docType.value === DocumentType.Other && (
-                        <TextInput
-                          style={[styles.input, { marginBottom: 6 }]}
-                          placeholder="Título do documento"
-                          value={
-                            documents.find((d) => d.type === docType.value)
-                              ?.title || ""
-                          }
-                          onChangeText={(text) =>
-                            handleDocumentTitleChange(docType.value, text)
-                          }
-                        />
-                      )}
-
-                      <TouchableOpacity
-                        style={styles.uploadButton}
-                        onPress={() => handleFileUpload(docType.value)}
-                      >
-                        <Ionicons
-                          name="cloud-upload-outline"
-                          size={18}
-                          color="#2563EB"
-                        />
-                        <Text style={styles.uploadText}>
-                          Selecionar ficheiro
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
+            <Text style={[styles.label, { marginTop: 12 }]}>Tipo</Text>
+            <View style={styles.typeRow}>
+              <TypePill
+                text="Apartamento"
+                active={type === PropertyType.Apartment}
+                onPress={() => setType(PropertyType.Apartment)}
+              />
+              <TypePill
+                text="Moradia"
+                active={type === PropertyType.House}
+                onPress={() => setType(PropertyType.House)}
+              />
+              <TypePill
+                text="Terreno"
+                active={type === PropertyType.Land}
+                onPress={() => setType(PropertyType.Land)}
+              />
+              <TypePill
+                text="Prédio"
+                active={type === PropertyType.Building}
+                onPress={() => setType(PropertyType.Building)}
+              />
+              <TypePill
+                text="Fração"
+                active={type === PropertyType.Unit}
+                onPress={() => setType(PropertyType.Unit)}
+              />
             </View>
-          </View>
-        </ScrollView>
 
-        {/* Fixed Actions */}
-        <View style={styles.actionsFixed}>
-          <Button title="Criar imóvel" onPress={handleCreateProperty} />
-          <Button
-            title="Cancelar"
-            variant="destructive"
-            onPress={() => router.push("/")}
-          />
-        </View>
-      </View>
+            <View style={{ height: 14 }} />
+
+            <Pressable
+              onPress={submit}
+              disabled={!canSubmit}
+              style={[
+                styles.primaryBtn,
+                !canSubmit && styles.primaryBtnDisabled,
+              ]}
+            >
+              {submitting ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.primaryBtnText}>A criar…</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryBtnText}>Criar imóvel</Text>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => router.push("/property/create-help")}
+              style={styles.secondaryBtn}
+            >
+              <Text style={styles.secondaryBtnText}>Ver tipos de imóveis</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <View style={{ height: 18 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+/* -------------------------------- Styles -------------------------------- */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F9FAFB",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: "#6B7280",
-    marginBottom: 20,
-  },
-  form: {
-    gap: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  input: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  documentsContainer: {
-    maxHeight: 350,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 12,
-    backgroundColor: "#FFFFFF",
-  },
-  documentCard: {
+  safe: { flex: 1, backgroundColor: "#fff" },
+  container: { padding: 16, paddingBottom: 24 },
+
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 12,
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
   },
-
-  documentIcon: {
+  iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: "#EFF6FF",
+    borderRadius: 14,
+    backgroundColor: "#F2F2F2",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
+  topTitle: { flex: 1, textAlign: "center", fontWeight: "900", color: "#111" },
 
-  documentContent: {
-    flex: 1,
-  },
-
-  documentTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-  },
-
-  documentFileName: {
-    marginTop: 2,
+  title: { fontSize: 22, fontWeight: "900", marginTop: 4 },
+  subtitle: {
+    marginTop: 6,
     fontSize: 13,
-    color: "#6B7280",
+    color: "#666",
+    fontWeight: "700",
+    lineHeight: 18,
   },
 
-  removeButton: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: "#FEE2E2",
-    marginLeft: 10,
+  card: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#fff",
   },
 
-  pickedDoc: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
+  label: { fontSize: 12, fontWeight: "900", color: "#111", marginBottom: 6 },
+  input: {
+    backgroundColor: "#F7F7F7",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: "#111",
   },
-  pickedDocText: {
-    marginLeft: 8,
-    flex: 1,
+
+  typeRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  typePill: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#F2F2F2",
   },
-  docPicker: {
-    flexDirection: "row",
+  typePillActive: { backgroundColor: "#111" },
+  typePillText: { fontSize: 12, fontWeight: "900", color: "#111" },
+  typePillTextActive: { color: "#fff" },
+
+  primaryBtn: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#111",
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 10,
   },
-  uploadButton: {
-    backgroundColor: "#E5E7EB",
-    borderRadius: 12,
-    padding: 12,
+  primaryBtnDisabled: { opacity: 0.4 },
+  primaryBtnText: { color: "#fff", fontWeight: "900" },
+
+  secondaryBtn: {
+    marginTop: 10,
+    height: 46,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  secondaryBtnText: { fontWeight: "900", color: "#111", textAlign: "center" },
+
+  createdHeader: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#FAFAFA",
     flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
   },
-  uploadText: {
-    marginLeft: 8,
-    color: "#2563EB",
+  createdTitle: { fontSize: 16, fontWeight: "900", color: "#111" },
+  createdSubtitle: {
+    marginTop: 4,
+    color: "#666",
+    fontWeight: "800",
+    fontSize: 12,
   },
-  actionsFixed: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "#F9FAFB",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+
+  pillsRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
+  pill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#F2F2F2",
+  },
+  pillText: { fontSize: 12, fontWeight: "800", color: "#111" },
+
+  sectionTitle: {
+    marginTop: 16,
+    marginBottom: 6,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  sectionHint: {
+    color: "#666",
+    fontWeight: "700",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
-    // Optional: add shadow for iOS/Android
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F1F1",
   },
+  checkDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkDotDone: { backgroundColor: "#111" },
+  checkDotTodo: { backgroundColor: "#F2F2F2" },
+  checkTitle: { flex: 1, fontWeight: "900", color: "#111", fontSize: 13 },
+
+  donePill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+  donePillText: { fontWeight: "900", color: "#047857", fontSize: 11 },
+
+  uploadMiniBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#111",
+  },
+  uploadMiniBtnText: { color: "#fff", fontWeight: "900", fontSize: 12 },
+
+  row: {
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: "#F2F2F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowTitle: { fontSize: 14, fontWeight: "900", color: "#111" },
+  rowSubtitle: { marginTop: 3, fontSize: 12, fontWeight: "700", color: "#666" },
+  rowChevron: { fontSize: 20, fontWeight: "900", color: "#999" },
+
+  emptyBox: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#FAFAFA",
+  },
+  emptyTitle: { fontWeight: "900", marginBottom: 6, fontSize: 14 },
+  emptyText: { color: "#555", lineHeight: 18, fontSize: 13, fontWeight: "700" },
+
+  tipBox: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: "#FAFAFA",
+  },
+  tipTitle: { fontWeight: "900", marginBottom: 6, fontSize: 13 },
+  tipText: { color: "#555", lineHeight: 18, fontSize: 13, fontWeight: "700" },
+
+  muted: { color: "#666", fontWeight: "800" },
 });

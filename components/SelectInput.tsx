@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-type Option = {
+export type Option = {
   label: string;
   value: string;
 };
@@ -54,21 +54,18 @@ export function SelectInput({
 
       {open && (
         <View style={styles.dropdown}>
-          <FlatList
-            data={options}
-            keyExtractor={(item) => item.value}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.option}
-                onPress={() => {
-                  onChange(item.value);
-                  setOpen(false);
-                }}
-              >
-                <Text style={styles.optionText}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
+          {options.map((item) => (
+            <TouchableOpacity
+              key={item.value}
+              style={styles.option}
+              onPress={() => {
+                onChange(item.value);
+                setOpen(false);
+              }}
+            >
+              <Text style={styles.optionText}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
     </View>
@@ -88,7 +85,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "white",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 12,

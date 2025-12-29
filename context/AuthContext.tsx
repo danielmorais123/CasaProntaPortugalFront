@@ -1,15 +1,11 @@
 import { api } from "@/hooks/services/api";
 import {
   login as loginAPI,
+  profileUserLoggedIn,
   register as registerAPI,
 } from "@/hooks/services/auth";
 import React, { createContext, useEffect, useState } from "react";
-
-export type User = {
-  id: string;
-  email: string;
-  name: string;
-};
+import type { User } from "@/types/models";
 
 interface AuthContextProps {
   user: User | null;
@@ -40,15 +36,14 @@ export const AuthProvider = ({ children }: any) => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/auth/me", { withCredentials: true });
-        setUser(res.data.user);
+        const res = await profileUserLoggedIn();
+        setUser(res);
       } catch {
         setUser(null);
       }
       setLoading(false);
     })();
   }, []);
-
   const login = async (email: string, password: string) => {
     try {
       const res = await loginAPI(email, password);

@@ -11,40 +11,62 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../../context/AuthContext";
+import { useError } from "@/context/ErrorContext";
 
 export default function LoginScreen() {
   const { login } = useContext(AuthContext);
+  const { setError } = useError();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const [error, setLocalError] = useState<string>("");
   const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError("Por favor, preencha todos os campos.");
+      setLocalError("Por favor, preencha todos os campos.");
       return;
     }
-    console.log("Tentando login com:", email, password);
-    const ok = await login(email, password);
-    console.log("Login result:", ok);
-    if (!ok) setError("Email ou password incorretos.");
-    else router.replace("/");
+    try {
+      const ok = await login(email, password);
+      if (!ok) setLocalError("Email ou password incorretos.");
+      else router.replace("/");
+    } catch (err: any) {
+      setError(err?.message || "Ocorreu um erro inesperado.");
+    }
   };
 
   useEffect(() => {
-    if (email && password) setError("");
+    if (email && password) setLocalError("");
   }, [email, password]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>
+        <TouchableOpacity onPress={() => router.push("/")}>
+          <Text>Home</Text>
+        </TouchableOpacity>
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Ionicons name="home-outline" size={56} color="#2563EB" />
           <Text style={styles.appName}>CasaPronta</Text>
           <Text style={styles.subtitle}>O cofre digital dos seus imóveis</Text>
         </View>
+        {error ? (
+          <View style={styles.errorBox}>
+            <View style={styles.errorIcon}>
+              <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+            </View>
 
+            <Text style={styles.errorText}>{error}</Text>
+
+            <TouchableOpacity
+              onPress={() => setLocalError("")}
+              style={styles.errorClose}
+            >
+              <Ionicons name="close" size={18} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {/* Card */}
         <View style={styles.card}>
           <TextInput
@@ -64,14 +86,6 @@ export default function LoginScreen() {
             onChangeText={setPassword}
           />
 
-          {error ? (
-            <Text
-              style={{ color: "#DC2626", textAlign: "center", marginBottom: 8 }}
-            >
-              {error}
-            </Text>
-          ) : null}
-
           <TouchableOpacity
             style={styles.forgot}
             onPress={() => router.push("/(auth)/request-password")}
@@ -87,7 +101,6 @@ export default function LoginScreen() {
             🔒 Dados protegidos com encriptação de nível bancário
           </Text>
         </View>
-
         {/* Register */}
         <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
           <Text style={styles.registerText}>
@@ -100,6 +113,44 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FEF2F2", // red-50
+    borderWidth: 1,
+    borderColor: "#FECACA", // red-200
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  errorIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEE2E2", // red-100
+  },
+  errorText: {
+    flex: 1,
+    color: "#991B1B", // red-800
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+  },
+  errorClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
   container: {
     flex: 1,
     backgroundColor: "#F1F5F9",
