@@ -18,6 +18,7 @@ import { api } from "@/hooks/services/api";
 import { Alert } from "@/components/Alert";
 import { Property, Document, PropertyType, DocumentType } from "@/types/models";
 import { useError } from "@/context/ErrorContext"; // <-- import
+import { useQuery } from "@tanstack/react-query";
 
 type CreatePropertyPayload = {
   name: string;
@@ -254,25 +255,28 @@ export default function AddPropertyScreen() {
     text: string;
   } | null>(null);
 
-  // New state for property count and limit
-  const [propertyCount, setPropertyCount] = useState<number>(0);
-  const [propertyLimit, setPropertyLimit] = useState<number | undefined>(
-    undefined
-  );
+  // Use React Query for property count and limit
+  const {
+    data: propertyStats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ["property-stats", user?.id],
+    queryFn: async () => {
+      const res = await getAllProperties(1, 1); // Only need total count
+      return {
+        count: res.total ?? 0,
+        limit:
+          user?.plan?.limits?.MaxProperties ?? user?.maxProperties ?? undefined,
+      };
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  // Fetch property count and limit on mount
-  useEffect(() => {
-    async function fetchLimits() {
-      try {
-        const res = await getAllProperties(1, 1); // Only need total count
-        setPropertyCount(res.total ?? 0);
-      } catch {}
-      setPropertyLimit(
-        user?.plan?.limits?.MaxProperties ?? user?.maxProperties ?? undefined
-      );
-    }
-    fetchLimits();
-  }, [user]);
+  const propertyCount = propertyStats?.count ?? 0;
+  const propertyLimit = propertyStats?.limit;
 
   const reachedLimit = useMemo(() => {
     return propertyLimit !== undefined && propertyCount >= propertyLimit;
@@ -372,6 +376,54 @@ export default function AddPropertyScreen() {
       },
     });
   };
+
+  if (statsLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator />
+          <Text style={{ marginTop: 16, color: "#666", fontWeight: "800" }}>
+            A carregar limites do plano…
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
+          <Text
+            style={{
+              marginTop: 16,
+              fontSize: 16,
+              color: "#F87171",
+              fontWeight: "700",
+            }}
+          >
+            Erro ao carregar limites do plano
+          </Text>
+          <Text style={{ marginTop: 8, color: "#6B7280", textAlign: "center" }}>
+            Não foi possível obter os limites do teu plano. Tenta novamente.
+          </Text>
+          <Pressable onPress={() => refetchStats()} style={styles.primaryBtn}>
+            <Text style={styles.primaryBtnText}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>

@@ -63,9 +63,13 @@ export function canShareProperty(
 ): boolean {
   if (!user || !property) return false;
 
-  // Plan must allow sharing (MaxGuests > 0)
-  const maxGuests = user.plan?.limits?.MaxGuests ?? 0;
+  // If plan exists and MaxGuests is undefined/null, allow unlimited guests
+  const maxGuests = user.plan?.limits?.MaxGuests;
+  if (user.plan && (maxGuests === undefined || maxGuests === null)) {
+    return true;
+  }
 
+  // Plan must allow sharing (MaxGuests > 0)
   if (!maxGuests || maxGuests <= 0) return false;
 
   // Count current guests (exclude owner)

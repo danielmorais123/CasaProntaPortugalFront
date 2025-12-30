@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthContext, AuthProvider } from "../context/AuthContext";
 import { ErrorProvider, useError } from "@/context/ErrorContext";
 import { ErrorAlert } from "@/components/ErrorAlert";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // import {
 //   useFonts as useRoboto,
 //   Roboto_400Regular,
@@ -16,6 +17,8 @@ import { ErrorAlert } from "@/components/ErrorAlert";
 //   Poppins_400Regular,
 //   Poppins_700Bold,
 // } from "@expo-google-fonts/poppins";
+
+const queryClient = new QueryClient();
 
 function RootNavigation() {
   const segments = useSegments();
@@ -51,11 +54,13 @@ export default function Layout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ErrorProvider>
-            <RootNavigation />
-          </ErrorProvider>
-        </AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <ErrorProvider>
+              <RootNavigation />
+            </ErrorProvider>
+          </AuthProvider>
+        </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

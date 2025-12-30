@@ -1,16 +1,73 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../../context/AuthContext";
+import { Button } from "@/components/Button";
+
+function ErrorCard({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
+  return (
+    <View style={styles.errorBox}>
+      <View style={styles.errorIcon}>
+        <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+      </View>
+      <Text style={styles.errorText}>{message}</Text>
+      <Pressable onPress={onClose} style={styles.errorClose}>
+        <Ionicons name="close" size={18} color="#64748B" />
+      </Pressable>
+    </View>
+  );
+}
+
+function InputRow({
+  icon,
+  placeholder,
+  value,
+  onChangeText,
+  keyboardType,
+  secureTextEntry,
+  autoCapitalize,
+}: {
+  icon: any;
+  placeholder: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  keyboardType?: any;
+  secureTextEntry?: boolean;
+  autoCapitalize?: any;
+}) {
+  return (
+    <View style={styles.inputWrap}>
+      <View style={styles.inputIcon}>
+        <Ionicons name={icon} size={18} color="#2563EB" />
+      </View>
+      <TextInput
+        placeholder={placeholder}
+        placeholderTextColor="#94A3B8"
+        style={styles.input}
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType={keyboardType}
+        secureTextEntry={secureTextEntry}
+        autoCapitalize={autoCapitalize}
+      />
+    </View>
+  );
+}
 
 export default function RegisterScreen() {
   const { register } = useContext(AuthContext);
@@ -20,7 +77,13 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const canSubmit = useMemo(() => {
+    return !!fullName && !!email && !!password && !!confirmPassword && !loading;
+  }, [fullName, email, password, confirmPassword, loading]);
 
   const handleRegister = async () => {
     if (!fullName || !email || !password || !confirmPassword) {
@@ -32,113 +95,208 @@ export default function RegisterScreen() {
       return;
     }
 
+    setLoading(true);
+    setError("");
     try {
       await register(fullName, email, password, confirmPassword);
-      router.push("/(auth)/login");
+      router.replace("/(auth)/login");
     } catch (e: any) {
       setError(
-        e?.response?.data?.message || "Algum erro ocorreu tente mais tarde."
+        e?.response?.data?.message || "Algum erro ocorreu. Tente mais tarde."
       );
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (fullName && email && password && confirmPassword) setError("");
+    if (error && fullName && email && password && confirmPassword) setError("");
   }, [fullName, email, password, confirmPassword]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.logoContainer}>
-          <Ionicons name="shield-checkmark-outline" size={52} color="#2563EB" />
-          <Text style={styles.appName}>Criar Conta</Text>
-          <Text style={styles.subtitle}>A sua casa organizada e segura</Text>
-        </View>
-        {error ? (
-          <View style={styles.errorBox}>
-            <View style={styles.errorIcon}>
-              <Ionicons name="alert-circle" size={18} color="#B91C1C" />
-            </View>
-
-            <Text style={styles.errorText}>{error}</Text>
-
-            <TouchableOpacity
-              onPress={() => setError("")}
-              style={styles.errorClose}
-            >
-              <Ionicons name="close" size={18} color="#64748B" />
-            </TouchableOpacity>
+      <View style={styles.screen}>
+        <View style={styles.brand}>
+          <View style={styles.brandIcon}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={28}
+              color="#1D4ED8"
+            />
           </View>
-        ) : null}
-        {/* Card */}
+          <Text style={styles.brandName}>Criar Conta</Text>
+          <Text style={styles.brandSub}>A sua casa organizada e segura</Text>
+        </View>
+
+        {!!error && <ErrorCard message={error} onClose={() => setError("")} />}
+
         <View style={styles.card}>
-          <TextInput
+          <Text style={styles.cardTitle}>Começar</Text>
+          <Text style={styles.cardSub}>
+            Crie uma conta para organizar os seus imóveis.
+          </Text>
+
+          <View style={{ height: 14 }} />
+
+          <InputRow
+            icon="person-outline"
             placeholder="Nome completo"
-            style={styles.input}
             value={fullName}
             onChangeText={setFullName}
           />
-
-          <TextInput
+          <View style={{ height: 10 }} />
+          <InputRow
+            icon="mail-outline"
             placeholder="Email"
             keyboardType="email-address"
             autoCapitalize="none"
-            style={styles.input}
             value={email}
             onChangeText={setEmail}
           />
-
-          <TextInput
+          <View style={{ height: 10 }} />
+          <InputRow
+            icon="lock-closed-outline"
             placeholder="Password"
             secureTextEntry
-            style={styles.input}
             value={password}
             onChangeText={setPassword}
           />
-
-          <TextInput
+          <View style={{ height: 10 }} />
+          <InputRow
+            icon="repeat-outline"
             placeholder="Confirmar password"
             secureTextEntry
-            style={styles.input}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
           />
 
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleRegister}
-          >
-            <Text style={styles.primaryButtonText}>Criar Conta</Text>
-          </TouchableOpacity>
+          <View style={{ height: 12 }} />
 
-          <Text style={styles.securityText}>
-            Ao criar conta aceita os Termos e Política de Privacidade
-          </Text>
+          <Button
+            title={loading ? "A criar…" : "Criar Conta"}
+            onPress={handleRegister}
+            loading={loading}
+            disabled={!canSubmit}
+          />
+
+          <View style={styles.legalRow}>
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color="#64748B"
+            />
+            <Text style={styles.legalText}>
+              Ao criar conta, aceita os Termos e Política de Privacidade.
+            </Text>
+          </View>
         </View>
 
-        {/* Back to Login */}
-        <TouchableOpacity onPress={() => router.push("/(auth)/login")}>
-          <Text style={styles.registerText}>
-            Já tem conta? <Text style={styles.link}>Entrar</Text>
+        <Pressable
+          onPress={() => router.replace("/(auth)/login")}
+          style={styles.bottomLink}
+        >
+          <Text style={styles.bottomText}>
+            Já tem conta? <Text style={styles.linkStrong}>Entrar</Text>
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 20,
+    justifyContent: "center",
+  },
+
+  brand: { alignItems: "center", marginBottom: 18 },
+  brandIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#DBEAFE",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  brandName: { fontSize: 24, fontWeight: "900", color: "#0F172A" },
+  brandSub: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+  },
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 18,
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardTitle: { fontSize: 18, fontWeight: "900", color: "#0F172A" },
+  cardSub: { marginTop: 6, fontSize: 12, color: "#64748B", lineHeight: 16 },
+
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  inputIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  input: { flex: 1, fontSize: 14, color: "#0F172A", fontWeight: "600" },
+
+  legalRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  legalText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  bottomLink: { marginTop: 16, alignItems: "center" },
+  bottomText: { fontSize: 14, color: "#475569" },
+  linkStrong: { color: "#2563EB", fontWeight: "900" },
+
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#FEF2F2", // red-50
+    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#FECACA", // red-200
+    borderColor: "#FECACA",
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 12,
   },
   errorIcon: {
@@ -147,15 +305,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FEE2E2", // red-100
+    backgroundColor: "#FEE2E2",
   },
-  errorText: {
-    flex: 1,
-    color: "#991B1B", // red-800
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
+  errorText: { flex: 1, color: "#991B1B", fontSize: 13, fontWeight: "700" },
   errorClose: {
     width: 34,
     height: 34,
@@ -165,94 +317,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-  },
-
-  container: {
-    flex: 1,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-
-  appName: {
-    fontSize: 26,
-    fontWeight: "700",
-    marginTop: 12,
-    color: "#0F172A",
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center",
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
-    marginBottom: 20,
-  },
-
-  input: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  forgot: {
-    alignItems: "flex-end",
-    marginBottom: 18,
-  },
-
-  forgotText: {
-    color: "#2563EB",
-    fontSize: 13,
-  },
-
-  primaryButton: {
-    backgroundColor: "#2563EB",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  securityText: {
-    textAlign: "center",
-    fontSize: 12,
-    color: "#64748B",
-    marginTop: 16,
-  },
-
-  registerText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#475569",
-  },
-
-  link: {
-    color: "#2563EB",
-    fontWeight: "700",
   },
 });

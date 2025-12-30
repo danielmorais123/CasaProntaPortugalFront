@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,12 @@ import {
   FlatList,
   RefreshControl,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/hooks/services/api";
 
 type NotificationType = "document" | "alert" | "system";
 
@@ -21,43 +24,29 @@ type Notification = {
   type: NotificationType;
 };
 
+async function fetchNotifications(): Promise<Notification[]> {
+  const res = await api.get("/notifications");
+  return res.data;
+}
+
 export default function NotificationsScreen() {
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
-  // 🔹 Mock (depois ligas à API)
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "Certificado energético a expirar",
-      message:
-        "O certificado energético da casa da Rua das Flores expira em 30 dias.",
-      createdAt: "2025-01-12T10:30:00Z",
-      isRead: false,
-      type: "document",
-    },
-    {
-      id: "2",
-      title: "Novo documento adicionado",
-      message: "Foi adicionado um novo documento ao imóvel Apartamento Lisboa.",
-      createdAt: "2025-01-10T18:12:00Z",
-      isRead: true,
-      type: "system",
-    },
-  ]);
+  const {
+    data: notifications = [],
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery<Notification[]>({
+    queryKey: ["notifications"],
+    queryFn: fetchNotifications,
+    staleTime: 1000 * 60 * 2,
+  });
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-
-    // 🔄 aqui depois chamas a API
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 800);
-  }, []);
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+  const markAsRead = async (id: string) => {
+    await api.post(`/notifications/${id}/read`);
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
   };
 
   const renderIcon = (type: NotificationType) => {
@@ -83,7 +72,6 @@ export default function NotificationsScreen() {
           color={item.isRead ? "#6B7280" : "#2563EB"}
         />
       </View>
-
       <View style={styles.content}>
         <Text style={[styles.title, !item.isRead && styles.unreadTitle]}>
           {item.title}
@@ -96,18 +84,51 @@ export default function NotificationsScreen() {
     </Pressable>
   );
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <ActivityIndicator />
+          <Text style={{ marginTop: 16, color: "#666", fontWeight: "800" }}>
+            A carregar notificações…
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
+          <Text style={styles.emptyTitle}>Erro ao carregar notificações</Text>
+          <Text style={styles.emptyText}>Tenta novamente mais tarde.</Text>
+          <Pressable onPress={() => refetch()} style={{ marginTop: 12 }}>
+            <Text style={{ color: "#2563EB", fontWeight: "900" }}>
+              Tentar novamente
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notificações</Text>
       </View>
-
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
         }
         contentContainerStyle={
           notifications.length === 0 && styles.emptyContainer
@@ -129,6 +150,7 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

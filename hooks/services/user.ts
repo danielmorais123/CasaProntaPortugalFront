@@ -9,18 +9,6 @@ export async function updateProfile(data: any) {
   return await api.put("/user/profile", data);
 }
 
-export async function updateHousing(data: any) {
-  return await api.put("/user/housing", data);
-}
-
-export async function updateLocation(data: any) {
-  return await api.put("/user/location", data);
-}
-
-export async function updatePreferences(data: any) {
-  return await api.put("/user/preferences", data);
-}
-
 export const searchUsers = async (
   query: string
 ): Promise<UserSearchResult[]> => {

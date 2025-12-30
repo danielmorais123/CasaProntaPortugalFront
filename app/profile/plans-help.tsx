@@ -1,7 +1,7 @@
 // app/(tabs)/profile/plans-help.tsx (exemplo)
 // adapta path conforme o teu Expo Router
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useMemo } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {
   getCurrentUserSubscription,
 } from "@/hooks/services/subscription";
 import { PlanLimits, SubscriptionPlanDto } from "@/types/models";
+import { useQuery } from "@tanstack/react-query";
+import { AuthContext } from "@/context/AuthContext";
 
 type CurrentSubscriptionDto = {
   planCode: string;
@@ -56,7 +58,7 @@ function Accordion({
   title: string;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = React.useState(false);
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -111,52 +113,36 @@ function planPersona(code: string) {
 }
 
 export default function PlansHelpScreen() {
+  const { user } = useContext(AuthContext);
+
   const router = useRouter();
 
-  const [plans, setPlans] = useState<SubscriptionPlanDto[] | null>(null);
-  const [current, setCurrent] = useState<CurrentSubscriptionDto | null>(null);
+  // React Query for plans
+  const {
+    data: plans = [],
+    isLoading: plansLoading,
+    error: plansError,
+  } = useQuery({
+    queryKey: ["plans"],
+    queryFn: getPlans,
+    staleTime: 1000 * 60 * 10,
+    select: (data) => {
+      // Ordena numa ordem fixa
+      const order = [
+        "free",
+        "starter",
+        "pro",
+        "business",
+        "portfolio",
+        "enterprise",
+      ];
+      return [...data].sort(
+        (a, b) => order.indexOf(a.code) - order.indexOf(b.code)
+      );
+    },
+  });
 
-  useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      try {
-        const [plansRes, currentRes] = await Promise.all([
-          getPlans(),
-          getCurrentUserSubscription(),
-        ]);
-
-        if (!mounted) return;
-
-        // Ordena numa ordem fixa
-        const order = [
-          "free",
-          "starter",
-          "pro",
-          "business",
-          "portfolio",
-          "enterprise",
-        ];
-        plansRes.sort(
-          (a: SubscriptionPlanDto, b: SubscriptionPlanDto) =>
-            order.indexOf(a.code) - order.indexOf(b.code)
-        );
-
-        setPlans(plansRes);
-        setCurrent(currentRes as CurrentSubscriptionDto);
-      } catch {
-        if (!mounted) return;
-        setPlans(null);
-        setCurrent({ planCode: "free", status: "active" });
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const currentCode = current?.planCode ?? "free";
+  const currentCode = user?.planCode ?? "free";
 
   const showAiBadge = useMemo(() => {
     const plan = plans?.find((p) => p.code === currentCode);
@@ -184,7 +170,20 @@ export default function PlansHelpScreen() {
           <Pill text={showAiBadge ? "IA no upload" : "Sem IA no upload"} />
         </View>
 
-        {plans ? (
+        {plansLoading || currentLoading ? (
+          <View style={styles.banner}>
+            <Text style={styles.bannerTitle}>A carregar planos…</Text>
+          </View>
+        ) : plansError || currentError ? (
+          <View style={styles.banner}>
+            <Text style={styles.bannerTitle}>
+              Não foi possível carregar os planos
+            </Text>
+            <Text style={styles.bannerMessage}>
+              Podes continuar a usar a app. Tenta novamente mais tarde.
+            </Text>
+          </View>
+        ) : (
           plans.map((p) => {
             const isCurrent = p.code === currentCode;
 
@@ -294,15 +293,6 @@ export default function PlansHelpScreen() {
               </View>
             );
           })
-        ) : (
-          <View style={styles.banner}>
-            <Text style={styles.bannerTitle}>
-              Não foi possível carregar os planos
-            </Text>
-            <Text style={styles.bannerMessage}>
-              Podes continuar a usar a app. Tenta novamente mais tarde.
-            </Text>
-          </View>
         )}
 
         <Text style={styles.sectionTitle}>Perguntas frequentes</Text>

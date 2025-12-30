@@ -1,7 +1,7 @@
 // app/(tabs)/properties/create-help.tsx  (exemplo)
 // ou onde fizer sentido no teu Expo Router
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
-import { SubscriptionPlanDto } from "@/types/models"; // or "@/context/AuthContext"
+import { SubscriptionPlanDto } from "@/types/models";
 
 type CurrentSubscriptionDto = {
   planCode: string;
@@ -23,7 +25,6 @@ type CurrentSubscriptionDto = {
 };
 
 type PropertyTypeKey = "House" | "Apartment" | "Land" | "Building";
-
 type PropertyCard = {
   key: PropertyTypeKey;
   title: string;
@@ -66,7 +67,6 @@ function InlineBanner({
     <View style={styles.banner}>
       <Text style={styles.bannerTitle}>{title}</Text>
       <Text style={styles.bannerMessage}>{message}</Text>
-
       {actionText && onAction ? (
         <Pressable onPress={onAction} style={styles.bannerButton}>
           <Text style={styles.bannerButtonText}>{actionText}</Text>
@@ -84,12 +84,10 @@ function Accordion({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setOpen((v) => !v);
   };
-
   return (
     <View style={styles.accordion}>
       <Pressable onPress={toggle} style={styles.accordionHeader}>
@@ -103,51 +101,41 @@ function Accordion({
 
 export default function CreatePropertyHelpScreen() {
   const router = useRouter();
-  const [plans, setPlans] = useState<SubscriptionPlanDto[] | null>(null);
-  const [current, setCurrent] = useState<CurrentSubscriptionDto | null>(null);
   const [gateMessage, setGateMessage] = useState<string | null>(null);
 
-  // --- Load plans + current subscription ---
-  useEffect(() => {
-    let mounted = true;
+  // React Query for plans
+  const {
+    data: plans = [],
+    isLoading: plansLoading,
+    error: plansError,
+  } = useQuery({
+    queryKey: ["plans"],
+    queryFn: async () => {
+      const res = await api.get("/api/subscriptions/plans");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 10,
+  });
 
-    (async () => {
-      try {
-        // Se já tens endpoints, usa os teus.
-        // Sugestões:
-        // GET /api/subscriptions/plans
-        // GET /api/subscriptions/current (ou /me)
-        const [plansRes, currentRes] = await Promise.all([
-          api.get("/api/subscriptions/plans"),
-          api.get("/api/subscriptions/current"), // adapta
-        ]);
-
-        if (!mounted) return;
-
-        setPlans(plansRes.data as SubscriptionPlanDto[]);
-        setCurrent(currentRes.data as CurrentSubscriptionDto);
-      } catch {
-        // falha silenciosa: não quebra UI
-        // Mantém fallback Free
-        if (!mounted) return;
-        setPlans(null);
-        setCurrent({ planCode: "free", status: "active" });
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // React Query for current subscription
+  const {
+    data: current,
+    isLoading: currentLoading,
+    error: currentError,
+  } = useQuery({
+    queryKey: ["current-subscription"],
+    queryFn: async () => {
+      const res = await api.get("/api/subscriptions/current");
+      return res.data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const planCode = current?.planCode ?? "free";
-
-  const canManageBuildings = useMemo(() => {
-    // Regras simples:
-    // - Building/fractions disponível a partir de Portfolio (e Enterprise)
-    // - Se quiseres, podes incluir Enterprise também
-    return planCode === "portfolio" || planCode === "enterprise";
-  }, [planCode]);
+  const canManageBuildings = useMemo(
+    () => planCode === "portfolio" || planCode === "enterprise",
+    [planCode]
+  );
 
   const cards: PropertyCard[] = useMemo(
     () => [
@@ -239,19 +227,43 @@ export default function CreatePropertyHelpScreen() {
 
   function onPressCard(card: PropertyCard) {
     setGateMessage(null);
-
     if (card.key === "Building" && !canManageBuildings) {
       setGateMessage(
         "A gestão de prédios (partes comuns + frações) está disponível em planos profissionais (Portfolio+)."
       );
       return;
     }
-
     router.push(card.route);
   }
 
   function goToPlans() {
-    router.push("/profile/subscription"); // ajusta para o teu route real
+    router.push("/profile/subscription");
+  }
+
+  if (plansLoading || currentLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <View style={styles.banner}>
+          <ActivityIndicator />
+          <Text style={styles.bannerTitle}>A carregar planos…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (plansError || currentError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <View style={styles.banner}>
+          <Text style={styles.bannerTitle}>
+            Não foi possível carregar os planos
+          </Text>
+          <Text style={styles.bannerMessage}>
+            Podes continuar a usar a app. Tenta novamente mais tarde.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (

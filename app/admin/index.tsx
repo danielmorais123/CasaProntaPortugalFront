@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -13,8 +13,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
-import { getPlans } from "@/hooks/services/subscription";
+import {
+  getPlans,
+  updateUserSubscription,
+} from "@/hooks/services/subscription";
 import { SelectInput } from "@/components/SelectInput";
 import type { SubscriptionPlanDto } from "@/types/models";
 
@@ -151,14 +155,11 @@ function Row({
 
 export default function AdminScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<TabKey>("users");
 
-  const [users, setUsers] = useState<any[]>([]);
-  const [properties, setProperties] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
+  // Filters and paging
   const [userQueryInput, setUserQueryInput] = useState("");
   const [userEmailInput, setUserEmailInput] = useState("");
   const [userPlanInput, setUserPlanInput] = useState("");
@@ -167,18 +168,35 @@ export default function AdminScreen() {
   const [userEmail, setUserEmail] = useState("");
   const [userPlan, setUserPlan] = useState("");
   const [propertyQuery, setPropertyQuery] = useState("");
-  const [plans, setPlans] = useState<SubscriptionPlanDto[]>([]);
-
   const [userPage, setUserPage] = useState(1);
   const [propertyPage, setPropertyPage] = useState(1);
 
-  const usersCount = users.length;
-  const propsCount = properties.length;
+  // Track selected plan for each user (by user id)
+  const [userPlanSelections, setUserPlanSelections] = useState<{
+    [userId: string]: string;
+  }>({});
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const usersRes = await api.get("/user/paged", {
+  // Plans
+  const {
+    data: plans = [],
+    isLoading: plansLoading,
+    refetch: refetchPlans,
+  } = useQuery({
+    queryKey: ["plans"],
+    queryFn: getPlans,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // Users
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    refetch: refetchUsers,
+  } = useQuery({
+    queryKey: ["admin-users", userPage, userQuery, userEmail, userPlan],
+    queryFn: async () => {
+      const res = await api.get("/user/paged", {
         params: {
           page: userPage,
           pageSize: 20,
@@ -187,51 +205,45 @@ export default function AdminScreen() {
           plan: userPlan || undefined,
         },
       });
+      return res.data;
+    },
+    keepPreviousData: true,
+  });
 
-      const propsRes = await api.get("/property/paged", {
+  // Properties
+  const {
+    data: propertiesData,
+    isLoading: propertiesLoading,
+    refetch: refetchProperties,
+  } = useQuery({
+    queryKey: ["admin-properties", propertyPage, propertyQuery],
+    queryFn: async () => {
+      const res = await api.get("/property/paged", {
         params: {
           page: propertyPage,
           pageSize: 20,
           query: propertyQuery || undefined,
         },
       });
-      console.log({ users: usersRes.data });
-      setUsers(usersRes.data.items ?? []);
-      setProperties(propsRes.data.items ?? []);
-    } catch (err) {
-      // TODO: add Alert component if you want
-    } finally {
-      setLoading(false);
-    }
-  }, [userPage, userQuery, userEmail, userPlan, propertyPage, propertyQuery]);
+      return res.data;
+    },
+    keepPreviousData: true,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const users = usersData?.items ?? [];
+  const usersTotal = usersData?.total ?? 0;
+  const properties = propertiesData?.items ?? [];
+  const propertiesTotal = propertiesData?.total ?? 0;
 
-  const fetchPlans = useCallback(async () => {
-    try {
-      const plansRes = await getPlans();
-      setPlans(plansRes ?? []);
-    } catch (err) {
-      // TODO: add Alert component if you want
-    }
-  }, []);
+  const hasMoreUsers = userPage * 20 < usersTotal;
+  const hasMoreProperties = propertyPage * 20 < propertiesTotal;
 
-  useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+  const usersCount = users.length;
+  const propsCount = properties.length;
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([fetchData(), fetchPlans()]);
-    setRefreshing(false);
-  }, [fetchData, fetchPlans]);
-
-  const activeCountText = useMemo(() => {
-    if (tab === "users") return `${usersCount} resultados`;
-    return `${propsCount} resultados`;
-  }, [tab, usersCount, propsCount]);
+  const onRefresh = async () => {
+    await Promise.all([refetchPlans(), refetchUsers(), refetchProperties()]);
+  };
 
   const planOptions = useMemo(
     () => [
@@ -272,7 +284,31 @@ export default function AdminScreen() {
     setPropertyPage(1);
   };
 
-  if (loading) {
+  // Mutation for updating user plan
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({
+      userId,
+      planCode,
+    }: {
+      userId: string;
+      planCode: string;
+    }) => {
+      await updateUserSubscription(planCode);
+    },
+    onMutate: ({ userId }) => setUpdatingUserId(userId),
+    onSettled: () => setUpdatingUserId(null),
+    onSuccess: () => {
+      refetchUsers();
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+    },
+  });
+
+  const activeCountText = useMemo(() => {
+    if (tab === "users") return `${usersCount} resultados`;
+    return `${propsCount} resultados`;
+  }, [tab, usersCount, propsCount]);
+
+  if (plansLoading || usersLoading || propertiesLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={styles.center}>
@@ -288,7 +324,7 @@ export default function AdminScreen() {
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={false} onRefresh={onRefresh} />
         }
       >
         {/* Top bar */}
@@ -306,13 +342,7 @@ export default function AdminScreen() {
             <Text style={styles.screenSubtitle}>{activeCountText}</Text>
           </View>
 
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => {
-              // quick scroll to top / future: open tools
-            }}
-            hitSlop={10}
-          >
+          <Pressable style={styles.iconBtn} onPress={() => {}} hitSlop={10}>
             <Ionicons name="options-outline" size={18} color="#111827" />
           </Pressable>
         </View>
@@ -399,7 +429,6 @@ export default function AdminScreen() {
         {/* Results */}
         <View style={{ marginTop: 12 }}>
           <Text style={styles.sectionTitle}>Resultados</Text>
-
           <Card>
             {tab === "users" ? (
               <>
@@ -412,11 +441,48 @@ export default function AdminScreen() {
                       badge={
                         (u.planName || u.plan || "").toUpperCase() || undefined
                       }
-                      onPress={() => {
-                        // optional: navigate to admin user detail page
-                        // router.push({ pathname: "/admin/user", params: { id: u.id } })
-                      }}
+                      onPress={() => {}}
                     />
+                    {/* Plan select and update button */}
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        marginVertical: 6,
+                      }}
+                    >
+                      <SelectInput
+                        label="Alterar plano"
+                        options={planOptions.slice(1)}
+                        value={userPlanSelections[u.id] ?? u.plan}
+                        onChange={(v) =>
+                          setUserPlanSelections((prev) => ({
+                            ...prev,
+                            [u.id]: v,
+                          }))
+                        }
+                      />
+                      <Pressable
+                        style={[
+                          styles.primaryBtn,
+                          updatingUserId === u.id && styles.pagerBtnDisabled,
+                        ]}
+                        onPress={() =>
+                          updatePlanMutation.mutate({
+                            userId: u.id,
+                            planCode: userPlanSelections[u.id],
+                          })
+                        }
+                        disabled={updatingUserId === u.id}
+                      >
+                        <Text style={styles.primaryBtnText}>
+                          {updatingUserId === u.id
+                            ? "A atualizar..."
+                            : "Atualizar"}
+                        </Text>
+                      </Pressable>
+                    </View>
                     {idx < users.length - 1 ? (
                       <View style={styles.divider} />
                     ) : null}
@@ -450,7 +516,11 @@ export default function AdminScreen() {
 
                   <Pressable
                     onPress={() => setUserPage((p) => p + 1)}
-                    style={styles.pagerBtn}
+                    style={[
+                      styles.pagerBtn,
+                      !hasMoreUsers && styles.pagerBtnDisabled,
+                    ]}
+                    disabled={!hasMoreUsers}
                   >
                     <Text style={styles.pagerText}>Seguinte</Text>
                     <Ionicons
@@ -470,10 +540,7 @@ export default function AdminScreen() {
                       title={p.name || "Imóvel"}
                       subtitle={p.streetName || p.id}
                       badge={p.type ? String(p.type).toUpperCase() : undefined}
-                      onPress={() => {
-                        // optional: open property screen
-                        // router.push({ pathname: "/property/details", params: { id: p.id } })
-                      }}
+                      onPress={() => {}}
                     />
                     {idx < properties.length - 1 ? (
                       <View style={styles.divider} />
@@ -508,7 +575,11 @@ export default function AdminScreen() {
 
                   <Pressable
                     onPress={() => setPropertyPage((p) => p + 1)}
-                    style={styles.pagerBtn}
+                    style={[
+                      styles.pagerBtn,
+                      !hasMoreProperties && styles.pagerBtnDisabled,
+                    ]}
+                    disabled={!hasMoreProperties}
                   >
                     <Text style={styles.pagerText}>Seguinte</Text>
                     <Ionicons

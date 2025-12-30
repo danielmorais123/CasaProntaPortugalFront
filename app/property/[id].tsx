@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Pressable,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +21,8 @@ import {
 import { getPropertyById } from "@/hooks/services/property";
 import { AuthContext } from "@/context/AuthContext";
 import { canEditProperty, canShareProperty } from "@/utils/permissions";
+import { ShareProperty } from "@/components/ShareProperty";
+import { useQuery } from "@tanstack/react-query";
 
 function Pill({ text }: { text: string }) {
   return (
@@ -230,57 +233,38 @@ export default function PropertyDetailScreen() {
   const params = useLocalSearchParams();
   const id = String(params.id ?? "");
   const { user } = useContext(AuthContext);
-  const [item, setItem] = useState<Property | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const canManagePermissions = canEditProperty(user, item); // owner/admin
-  const canShare = canShareProperty(user, item); // plano/limite
+  const [shareOpen, setShareOpen] = useState(false);
 
+  // React Query for property
+  const {
+    data: item,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["property", id],
+    queryFn: () => getPropertyById(id),
+    enabled: !!id,
+  });
+
+  const canManagePermissions = canEditProperty(user, item);
+  const canShare = canShareProperty(user, item);
   const shareDisabled = !canShare;
-  const showManage = canManagePermissions; // só owner/admin vê "Gerir"
+  const showManage = canManagePermissions;
 
-  const onManagePermissions = () =>
-    router.push({
-      pathname: "/property/permissions",
-      params: { propertyId: item?.id },
-    });
-
-  const onUpgrade = () => router.push("/profile/plans-help");
-  const fetchOne = async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      // Ajusta se o teu endpoint for /property?id=... ou /property/{id}
-      const res = await getPropertyById(id);
-      setItem(res);
-    } catch {
-      // mantém o item atual (não pisca)
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!id) return;
-    fetchOne(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchOne(true);
-    setRefreshing(false);
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const docs = item?.documents ?? [];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const alerts = item?.alerts ?? [];
   const permissions = item?.permissions ?? [];
 
   const docsPreview = useMemo(() => docs.slice(0, 4), [docs]);
   const alertsPreview = useMemo(() => alerts.slice(0, 3), [alerts]);
 
-  if (loading) {
+  const onRefresh = async () => {
+    await refetch();
+  };
+
+  if (isLoading || isFetching) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={styles.center}>
@@ -291,7 +275,7 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  if (!item) {
+  if (error || !item) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={[styles.container, { justifyContent: "center", flex: 1 }]}>
@@ -313,7 +297,7 @@ export default function PropertyDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />
         }
       >
         {/* Top bar */}
@@ -486,65 +470,10 @@ export default function PropertyDetailScreen() {
           </View>
         )}
 
-        {/* Inventário */}
-        {/* <SectionHeader
-          title="Inventário"
-          actionText="Gerir"
-          onAction={() =>
-            router.push({
-              pathname: "/inventory",
-              params: { propertyId: item.id },
-            })
-          }
-        /> */}
-
-        {/* {inventory.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Inventário vazio</Text>
-            <Text style={styles.emptyText}>
-              Adiciona itens (ex.: eletrodomésticos, mobiliário) com fotos e
-              notas.
-            </Text>
-            <Pressable
-              style={styles.secondaryCta}
-              onPress={() =>
-                router.push({
-                  pathname: "/inventory/create",
-                  params: { propertyId: item.id },
-                })
-              }
-            >
-              <Text style={styles.secondaryCtaText}>Adicionar item</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {inventoryPreview.map((it) => (
-              <InventoryRow
-                key={it.id}
-                name={it.name}
-                mediaCount={it.mediaFiles?.length ?? 0}
-                onPress={() =>
-                  router.push({
-                    pathname: "/inventory/[id]",
-                    params: { id: it.id },
-                  })
-                }
-              />
-            ))}
-          </View>
-        )} */}
-
-        {/* Partilhas */}
-        {/* <SectionHeader
-          title="Partilhas"
-          actionText="Gerir"
-          onAction={() => console.log("Partilhas")}
-        /> */}
         <SectionHeader
           title="Partilhas"
-          actionText={showManage ? "Gerir" : undefined}
-          onAction={onManagePermissions}
+          actionText={showManage ? "Partilhar este imóvel" : undefined}
+          onAction={() => setShareOpen(true)}
           disabled={showManage ? shareDisabled : undefined}
           secondaryText={showManage && shareDisabled ? "Upgrade" : undefined}
           onSecondaryAction={
@@ -564,10 +493,10 @@ export default function PropertyDetailScreen() {
                 showManage && shareDisabled ? styles.disabledCta : null,
               ]}
               disabled={!showManage || shareDisabled}
-              onPress={onManagePermissions}
+              onPress={() => setShareOpen(true)}
             >
               <Text style={styles.secondaryCtaText}>
-                {showManage ? "Gerir permissões" : "Sem permissão"}
+                {showManage ? "Partilhar este imóvel" : "Sem permissão"}
               </Text>
             </Pressable>
             {showManage && shareDisabled ? (
@@ -602,15 +531,61 @@ export default function PropertyDetailScreen() {
 
             <Pressable
               style={styles.secondaryCta}
-              onPress={() => console.log("Algo")}
+              onPress={() => setShareOpen(true)}
             >
-              <Text style={styles.secondaryCtaText}>Ver/gerir partilhas</Text>
+              <Text style={styles.secondaryCtaText}>Partilhar este imóvel</Text>
             </Pressable>
           </View>
         )}
 
         <View style={{ height: 18 }} />
       </ScrollView>
+
+      {/* Modal de partilha */}
+      <Modal
+        visible={shareOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShareOpen(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 18,
+              padding: 18,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{ fontWeight: "bold", fontSize: 18, marginBottom: 12 }}
+            >
+              Partilhar este imóvel
+            </Text>
+            <ShareProperty propertyId={item.id} />
+            <Pressable
+              style={[
+                styles.primaryCta,
+                { marginTop: 18, backgroundColor: "#eee" },
+              ]}
+              onPress={() => setShareOpen(false)}
+            >
+              <Text style={[styles.primaryCtaText, { color: "#111" }]}>
+                Fechar
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

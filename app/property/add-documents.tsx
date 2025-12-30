@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -21,13 +15,13 @@ import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getSuggestionsByPropertyType } from "@/hooks/services/document";
 import { DocumentType, DocumentTypeName } from "@/types/models";
+import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/hooks/services/api";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
-import { AuthContext } from "@/context/AuthContext"; // <-- importa o contexto
+import { AuthContext } from "@/context/AuthContext";
 
-// Ajusta estes enums ao teu projeto
 type PropertyType = "apartment" | "house" | "land" | "building" | "other";
 type DocumentScope = string;
 
@@ -37,7 +31,6 @@ type SuggestedDoc = {
   description?: string;
   category?: string;
   scope?: DocumentScope;
-  // podes ter mais campos conforme DocumentSuggestions.GetSuggested(...)
 };
 
 type PlanCode =
@@ -50,14 +43,14 @@ type PlanCode =
 
 type PlanInfo = {
   plan: PlanCode;
-  canEncrypt: boolean; // business+
-  canUploadViaBackend: boolean; // business+
+  canEncrypt: boolean;
+  canUploadViaBackend: boolean;
   maxFileSize: number;
 };
 
 export default function DocumentUploadSuggestionsScreen() {
   const router = useRouter();
-  const { user } = useContext(AuthContext); // <-- usa o contexto
+  const { user } = useContext(AuthContext);
   const params = useLocalSearchParams<{
     propertyId: string;
     propertyType: string;
@@ -66,13 +59,9 @@ export default function DocumentUploadSuggestionsScreen() {
   const propertyId = params.propertyId;
   const propertyType = (params.propertyType || "other") as PropertyType;
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestedDoc[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<string | null>(null);
-  console.log({ user });
-  // Vai buscar o plano do user do contexto global
+  const [error, setError] = useState<string | null>(null);
+
   const planInfo: PlanInfo = useMemo(() => {
     const planCode = user?.plan?.code || "free";
     const normalized = String(planCode)?.toLowerCase();
@@ -88,37 +77,29 @@ export default function DocumentUploadSuggestionsScreen() {
     };
   }, [user]);
 
-  const loadSuggestions = useCallback(async () => {
-    if (!propertyId) return;
-
-    setError(null);
-    try {
-      // data will be an array of numbers, e.g. [1,2,3]
+  // React Query for suggestions
+  const {
+    data: suggestions = [],
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch,
+  } = useQuery<SuggestedDoc[]>({
+    queryKey: ["suggestions", propertyType, propertyId],
+    queryFn: async () => {
+      if (!propertyId) return [];
       const data: number[] = await getSuggestionsByPropertyType(propertyType);
-
-      // Map each number to a suggestion object with type and title
-      const suggestions = data.map((typeNum) => ({
+      return data.map((typeNum) => ({
         type: typeNum,
         title: DocumentTypeName[typeNum as DocumentType] || "Documento",
       }));
-
-      setSuggestions(suggestions);
-    } catch (e: any) {
-      setError(e?.message || "Falha ao carregar sugestões.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [propertyId, propertyType]);
-
-  useEffect(() => {
-    loadSuggestions();
-  }, [loadSuggestions]);
+    },
+    enabled: !!propertyId,
+  });
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadSuggestions();
-  }, [loadSuggestions]);
+    refetch();
+  }, [refetch]);
 
   const pickFile = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -131,11 +112,6 @@ export default function DocumentUploadSuggestionsScreen() {
     return result.assets?.[0] ?? null;
   }, []);
 
-  /**
-   * ✅ Fluxo certo por plano:
-   * - Business+ => POST /api/document/upload (multipart)
-   * - Free/Basic => upload-url (presigned) + confirm-upload
-   */
   const uploadForSuggestion = useCallback(
     async (s: SuggestedDoc) => {
       if (!propertyId || !planInfo) return;
@@ -147,7 +123,6 @@ export default function DocumentUploadSuggestionsScreen() {
         const file = await pickFile();
         if (!file) return;
 
-        // Limite de tamanho dinâmico por plano
         if (file.size && file.size > planInfo.maxFileSize) {
           setError(
             `Este documento excede ${
@@ -158,7 +133,6 @@ export default function DocumentUploadSuggestionsScreen() {
         }
 
         if (planInfo.canUploadViaBackend) {
-          // ✅ PREMIUM: upload via backend (multipart)
           const form = new FormData();
           form.append("file", {
             // @ts-ignore
@@ -171,20 +145,14 @@ export default function DocumentUploadSuggestionsScreen() {
           form.append("Type", s.type);
           if (s.category) form.append("Category", s.category);
 
-          // podes acrescentar estes campos se quiseres
-          // form.append("RequestEncryption", "true"); // ou "false" conforme UI
-
-          const res = await api.post(`/api/document/upload`, form, {
+          await api.post(`/api/document/upload`, form, {
             headers: { "Content-Type": "multipart/form-data" },
           });
 
-          // res.data => { documentId, downloadUrl, isEncrypted... } (conforme implementares)
           router.back();
           return;
         }
 
-        // ✅ FREE/BASIC: presigned
-        // 1) pedir upload-url
         const uploadReq = {
           propertyId,
           type: s.type,
@@ -198,9 +166,8 @@ export default function DocumentUploadSuggestionsScreen() {
         };
 
         const presigned = await api.post(`/api/document/upload-url`, uploadReq);
-        const { uploadUrl, s3Key, documentId } = presigned.data;
+        const { uploadUrl, documentId } = presigned.data;
 
-        // 2) upload direto para o S3
         const uploadRes = await fetch(uploadUrl, {
           method: "PUT",
           headers: {
@@ -209,7 +176,6 @@ export default function DocumentUploadSuggestionsScreen() {
           body: await (await fetch(file.uri)).blob(),
         });
 
-        // 3) confirmar upload
         await api.post(`/api/document/${documentId}/confirm-upload`, {
           documentId,
           uploadSuccessful: uploadRes.ok,
@@ -328,6 +294,7 @@ export default function DocumentUploadSuggestionsScreen() {
       </SafeAreaView>
     );
   }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
@@ -341,13 +308,13 @@ export default function DocumentUploadSuggestionsScreen() {
         </View>
       </View>
 
-      {error ? (
+      {error || queryError ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-          <Alert type="error" message={error} />
+          <Alert type="error" message={error || String(queryError)} />
         </View>
       ) : null}
 
-      {loading ? (
+      {isLoading || isFetching ? (
         <View style={styles.loadingWrap}>
           <ActivityIndicator />
           <Text style={styles.loadingText}>A carregar…</Text>
@@ -358,7 +325,7 @@ export default function DocumentUploadSuggestionsScreen() {
           keyExtractor={(item, idx) => `${item.type}-${idx}`}
           renderItem={renderItem}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />
           }
           contentContainerStyle={
             suggestions.length === 0 ? styles.emptyWrap : styles.listContent
@@ -393,7 +360,6 @@ export default function DocumentUploadSuggestionsScreen() {
         />
       )}
 
-      {/* Footer com nota */}
       <View style={styles.footer}>
         <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
         <Text style={styles.footerText}>

@@ -1,5 +1,5 @@
 // HomeScreen.tsx
-import React, { useEffect, useState, useContext, useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/hooks/services/api";
-import { Property, Alert, PropertyType } from "@/types/models";
+import { Property, PropertyType } from "@/types/models";
 import { useRouter } from "expo-router";
 import { Alert as AlertComponent } from "@/components/Alert";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
+import { useQuery } from "@tanstack/react-query";
 
 function Pill({ text }: { text: string }) {
   return (
@@ -119,51 +120,71 @@ function PropertyMiniCard({
 }
 
 export default function HomeScreen() {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
   const { logout } = useContext(AuthContext);
   const router = useRouter();
 
-  const fetchData = async (silent = false) => {
-    if (!silent) setLoading(true);
+  // React Query for properties
+  const {
+    data: properties = [],
+    isLoading: propertiesLoading,
+    isFetching: propertiesFetching,
+    refetch: refetchProperties,
+    error: propertiesError,
+  } = useQuery({
+    queryKey: ["properties"],
+    queryFn: async () => {
+      const res = await getAllProperties();
+      return res.items ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
-    try {
-      const [propertiesRes, alertsRes] = await Promise.all([
-        getAllProperties(), // Use the service
-        api.get("/alerts/upcoming?days=30"),
-      ]);
+  // React Query for alerts
+  const {
+    data: alerts = [],
+    isLoading: alertsLoading,
+    isFetching: alertsFetching,
+    refetch: refetchAlerts,
+    error: alertsError,
+  } = useQuery({
+    queryKey: ["alerts", 30],
+    queryFn: async () => {
+      const res = await api.get("/alerts/upcoming?days=30");
+      return res.data ?? [];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
 
-      setProperties(propertiesRes.items ?? []); // getAllProperties returns a paged result
-      setAlerts(alertsRes.data ?? []);
-    } catch (e) {
-      // ✅ não limpar para não “piscar” UI feia em caso de erro
-      // (mantém dados antigos)
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-  console.log({ properties });
-  useEffect(() => {
-    fetchData(false);
-  }, []);
+  const isLoading = propertiesLoading || alertsLoading;
+  const isFetching = propertiesFetching || alertsFetching;
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchData(true);
-    setRefreshing(false);
+    await Promise.all([refetchProperties(), refetchAlerts()]);
   };
 
   const alertsPreview = useMemo(() => alerts.slice(0, 3), [alerts]);
   const totalAlerts = alerts.length;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (propertiesError || alertsError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
+          <Text style={styles.emptyTitle}>Erro ao carregar dados</Text>
+          <Text style={styles.emptyText}>Tenta novamente mais tarde.</Text>
+          <Pressable onPress={onRefresh} style={styles.primaryCta}>
+            <Text style={styles.primaryCtaText}>Tentar novamente</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -174,7 +195,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isFetching} onRefresh={onRefresh} />
         }
       >
         {/* Header */}
@@ -214,7 +235,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Quick actions (em vez de 2 botões azuis gigantes) */}
+        {/* Quick actions */}
         <View style={styles.quickRow}>
           <QuickCard
             icon="help-circle-outline"

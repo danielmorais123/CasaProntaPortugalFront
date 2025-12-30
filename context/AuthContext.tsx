@@ -4,8 +4,9 @@ import {
   profileUserLoggedIn,
   register as registerAPI,
 } from "@/hooks/services/auth";
-import React, { createContext, useEffect, useState } from "react";
+import React, { createContext } from "react";
 import type { User } from "@/types/models";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextProps {
   user: User | null;
@@ -29,25 +30,29 @@ export const AuthContext = createContext<AuthContextProps>({
 });
 
 export const AuthProvider = ({ children }: any) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = React.useState<User | null>(null);
+  const queryClient = useQueryClient();
 
-  // Load user info on startup
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await profileUserLoggedIn();
-        setUser(res);
-      } catch {
-        setUser(null);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  // Query para buscar o utilizador autenticado
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["user"],
+    queryFn: profileUserLoggedIn,
+    retry: false,
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => setUser(data),
+    onError: () => setUser(null),
+  });
+
+  React.useEffect(() => {
+    if (data) setUser(data);
+  }, [data]);
+
   const login = async (email: string, password: string) => {
     try {
       const res = await loginAPI(email, password);
       setUser(res.user);
+      // Atualiza o cache do user
+      queryClient.setQueryData(["user"], res.user);
       return true;
     } catch {
       return false;
@@ -62,6 +67,8 @@ export const AuthProvider = ({ children }: any) => {
   ) => {
     try {
       await registerAPI(name, email, password, confirmPassword);
+      // Opcional: refetch user
+      await refetch();
       return true;
     } catch {
       return false;
@@ -73,10 +80,13 @@ export const AuthProvider = ({ children }: any) => {
       await api.post("/auth/logout", {}, { withCredentials: true });
     } catch {}
     setUser(null);
+    queryClient.removeQueries({ queryKey: ["user"] });
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register }}>
+    <AuthContext.Provider
+      value={{ user, loading: isLoading, login, logout, register }}
+    >
       {children}
     </AuthContext.Provider>
   );

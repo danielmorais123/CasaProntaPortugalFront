@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Property /*, PropertyType */ } from "@/types/models";
-import { getAllProperties } from "@/hooks/services/property"; // <-- use the service
+import { Property } from "@/types/models";
+import { getAllProperties } from "@/hooks/services/property";
+import { useQuery } from "@tanstack/react-query";
 
 function Pill({
   text,
@@ -105,38 +106,19 @@ function PropertyRow({ p, onPress }: { p: Property; onPress: () => void }) {
 
 export default function PropertiesScreen() {
   const router = useRouter();
-
-  const [items, setItems] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
   const [query, setQuery] = useState("");
 
-  // filtros (opcional) — só liga se adicionares `type` ao Property
-  // const [filter, setFilter] = useState<"all" | PropertyType>("all");
+  // React Query for properties
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ["properties"],
+    queryFn: async () => {
+      const res = await getAllProperties();
+      return res.items ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
-  const fetchAll = async (silent = false) => {
-    if (!silent) setLoading(true);
-
-    try {
-      const res = await getAllProperties(); // <-- use the service
-      setItems(res.items ?? []); // getAllProperties returns a paged result
-    } catch {
-      // não rebenta UI; mantém items antigos
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAll(false);
-  }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchAll(true);
-    setRefreshing(false);
-  };
+  const items = data ?? [];
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -155,7 +137,7 @@ export default function PropertiesScreen() {
     });
   }, [items, query /*, filter*/]);
 
-  if (loading) {
+  if (isLoading || isFetching) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View style={styles.center}>
@@ -166,12 +148,27 @@ export default function PropertiesScreen() {
     );
   }
 
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
+          <Text style={styles.emptyTitle}>Erro ao carregar imóveis</Text>
+          <Text style={styles.emptyText}>Tenta novamente mais tarde.</Text>
+          <Pressable onPress={() => refetch()} style={styles.primaryCta}>
+            <Text style={styles.primaryCtaText}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={isFetching} onRefresh={refetch} />
         }
       >
         {/* Header */}

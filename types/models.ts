@@ -233,13 +233,13 @@ export interface SubscriptionAddon {
 }
 
 export type PlanLimits = {
-  MaxProperties?: number;
-  MaxDocuments?: number;
-  MaxGuests?: number;
-  MaxBuildings?: number;
-  MaxUnitsPerBuilding?: number;
-  AiOnUpload?: boolean;
-  MaxUploadMb?: number;
+  maxProperties?: number;
+  maxDocuments?: number;
+  maxGuests?: number;
+  maxBuildings?: number;
+  maxUnitsPerBuilding?: number;
+  aiOnUpload?: boolean;
+  maxUploadMb?: number;
 };
 
 export type SubscriptionPlanDto = {
