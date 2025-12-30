@@ -14,7 +14,7 @@ function RootNavigation() {
   const router = useRouter();
   const { user, loading } = useContext(AuthContext);
   const { error, clearError } = useError();
-
+  console.log({ user });
   const [layoutReady, setLayoutReady] = useState(false);
 
   useEffect(() => {

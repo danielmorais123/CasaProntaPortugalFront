@@ -37,7 +37,7 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(user?.email || "");
 
   // subscription info (from user)
-  const planName = user?.planName;
+  const planName = user?.planName ?? "free";
   const maxProperties = user?.plan?.limits?.maxProperties ?? 1;
   const maxDocuments = user?.plan?.limits?.maxDocuments;
   const [alertMessage, setAlertMessage] = useState<{
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     try {
-      await updateProfile({ name, email });
+      await updateProfile({ name });
       await queryClient.invalidateQueries({ queryKey: ["user"] });
       setAlertMessage({
         type: "success",
@@ -252,7 +252,7 @@ export default function ProfileScreen() {
         {/* Profile details */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Dados do perfil</Text>
-          <Text style={styles.cardSubtitle}>Atualiza o teu nome e email.</Text>
+          <Text style={styles.cardSubtitle}>Atualiza o teu nome</Text>
 
           <View style={{ height: 12 }} />
 
@@ -278,10 +278,15 @@ export default function ProfileScreen() {
             placeholder="Email"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={false}
           />
 
           <View style={{ height: 10 }} />
-          <Button title="Guardar Alterações" onPress={handleSave} />
+          <Button
+            title="Guardar Alterações"
+            onPress={handleSave}
+            disabled={name.trim() === (user?.name ?? "").trim()} // disables if unchanged
+          />
         </View>
 
         {/* Quick Actions */}

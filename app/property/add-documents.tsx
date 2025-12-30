@@ -14,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getSuggestionsByPropertyType } from "@/hooks/services/document";
-import { DocumentType, DocumentTypeName, PropertyType } from "@/types/models";
+import { DocumentType, DocumentTypeName } from "@/types/models";
+import { getPlans } from "@/hooks/services/subscription";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/hooks/services/api";
@@ -23,6 +24,7 @@ import { Button } from "@/components/Button";
 import { AuthContext } from "@/context/AuthContext";
 import { propertyTypeFromString } from "@/utils/property";
 import { documentTypeToId } from "@/utils/document";
+import { getMaxFileSizeForPlan } from "@/utils/plan";
 
 type DocumentScope = string;
 
@@ -62,6 +64,15 @@ export default function DocumentUploadSuggestionsScreen() {
 
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const {
+    data: plans = [],
+    isLoading: plansLoading,
+    error: plansError,
+  } = useQuery({
+    queryKey: ["plans"],
+    queryFn: getPlans,
+    staleTime: 1000 * 60 * 10,
+  });
 
   const planInfo: PlanInfo = useMemo(() => {
     const planCode = user?.plan?.code || "free";
@@ -74,9 +85,9 @@ export default function DocumentUploadSuggestionsScreen() {
       plan: normalized as PlanCode,
       canEncrypt,
       canUploadViaBackend: canEncrypt,
-      maxFileSize: canEncrypt ? 25 * 1024 * 1024 : 5 * 1024 * 1024,
+      maxFileSize: getMaxFileSizeForPlan(planCode, plans), // <-- use plans from query
     };
-  }, [user]);
+  }, [user, plans]);
 
   // React Query for suggestions
   const {
@@ -213,8 +224,8 @@ export default function DocumentUploadSuggestionsScreen() {
         ? "Upload premium (mais seguro)"
         : "Upload standard";
 
-    return `${planLabel} • Limite 25 MB`;
-  }, [planInfo?.plan]);
+    return `${planLabel} • Limite ${planInfo.maxFileSize} MB`;
+  }, [planInfo.maxFileSize, planInfo?.plan]);
 
   const renderItem = ({ item }: { item: SuggestedDoc }) => {
     const isUploading = uploadingType === item.type;
