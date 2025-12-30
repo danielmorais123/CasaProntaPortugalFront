@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useContext } from "react";
+import React, { useMemo, useState, useContext } from "react";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
 import {
@@ -9,16 +9,14 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { api } from "@/hooks/services/api";
-import { Alert } from "@/components/Alert";
-import { Property, Document, PropertyType, DocumentType } from "@/types/models";
+import { Property, PropertyType, DocumentType } from "@/types/models";
 import { useError } from "@/context/ErrorContext"; // <-- import
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type CreatePropertyPayload = {
   name: string;
@@ -31,125 +29,125 @@ type CreatePropertyPayload = {
  * Se tu já tens esta lógica noutro ficheiro (ex. /hooks/propertyDocs.ts),
  * substitui esta função pela tua.
  */
-function getRecommendedDocTypesForPropertyType(
-  type: PropertyType
-): DocumentType[] {
-  switch (type) {
-    case PropertyType.House:
-    case PropertyType.Apartment:
-      return [
-        DocumentType.TituloAquisicaoOuEscritura,
-        DocumentType.CadernetaPredial,
-        DocumentType.CertidaoPermanenteRegistoPredial,
-        DocumentType.LicencaUtilizacaoOuIsencao,
-        DocumentType.CertificadoEnergetico,
-        DocumentType.ComprovativoPagamentoIMI,
-      ];
+// function getRecommendedDocTypesForPropertyType(
+//   type: PropertyType
+// ): DocumentType[] {
+//   switch (type) {
+//     case PropertyType.House:
+//     case PropertyType.Apartment:
+//       return [
+//         DocumentType.TituloAquisicaoOuEscritura,
+//         DocumentType.CadernetaPredial,
+//         DocumentType.CertidaoPermanenteRegistoPredial,
+//         DocumentType.LicencaUtilizacaoOuIsencao,
+//         DocumentType.CertificadoEnergetico,
+//         DocumentType.ComprovativoPagamentoIMI,
+//       ];
 
-    case PropertyType.Land:
-      return [
-        DocumentType.CadernetaPredial,
-        DocumentType.CertidaoPermanenteRegistoPredial,
-        DocumentType.PlantaLocalizacao,
-        DocumentType.LevantamentoTopografico,
-        DocumentType.InformacaoPreviaOuPIP,
-        DocumentType.AlvaraLoteamento,
-      ];
+//     case PropertyType.Land:
+//       return [
+//         DocumentType.CadernetaPredial,
+//         DocumentType.CertidaoPermanenteRegistoPredial,
+//         DocumentType.PlantaLocalizacao,
+//         DocumentType.LevantamentoTopografico,
+//         DocumentType.InformacaoPreviaOuPIP,
+//         DocumentType.AlvaraLoteamento,
+//       ];
 
-    case PropertyType.Building:
-      return [
-        DocumentType.RegulamentoCondominio,
-        DocumentType.AtasCondominio,
-        DocumentType.SeguroEdificioPartesComuns,
-        DocumentType.RelatorioContasCondominio,
-        DocumentType.MapaQuotasERecibosCondominio,
-        DocumentType.ContratoAdministracaoCondominio,
-        DocumentType.ContratosManutencao,
-      ];
+//     case PropertyType.Building:
+//       return [
+//         DocumentType.RegulamentoCondominio,
+//         DocumentType.AtasCondominio,
+//         DocumentType.SeguroEdificioPartesComuns,
+//         DocumentType.RelatorioContasCondominio,
+//         DocumentType.MapaQuotasERecibosCondominio,
+//         DocumentType.ContratoAdministracaoCondominio,
+//         DocumentType.ContratosManutencao,
+//       ];
 
-    case PropertyType.Unit:
-      return [
-        DocumentType.TituloAquisicaoOuEscritura,
-        DocumentType.CadernetaPredial,
-        DocumentType.CertidaoPermanenteRegistoPredial,
-        DocumentType.ComprovativoPagamentoIMI,
-      ];
+//     case PropertyType.Unit:
+//       return [
+//         DocumentType.TituloAquisicaoOuEscritura,
+//         DocumentType.CadernetaPredial,
+//         DocumentType.CertidaoPermanenteRegistoPredial,
+//         DocumentType.ComprovativoPagamentoIMI,
+//       ];
 
-    default:
-      return [];
-  }
-}
+//     default:
+//       return [];
+//   }
+// }
 
-function propertyTypeLabel(t: PropertyType) {
-  switch (t) {
-    case PropertyType.House:
-      return "Moradia";
-    case PropertyType.Apartment:
-      return "Apartamento";
-    case PropertyType.Land:
-      return "Terreno";
-    case PropertyType.Building:
-      return "Prédio";
-    case PropertyType.Unit:
-      return "Fração";
-    default:
-      return "Imóvel";
-  }
-}
+// function propertyTypeLabel(t: PropertyType) {
+//   switch (t) {
+//     case PropertyType.House:
+//       return "Moradia";
+//     case PropertyType.Apartment:
+//       return "Apartamento";
+//     case PropertyType.Land:
+//       return "Terreno";
+//     case PropertyType.Building:
+//       return "Prédio";
+//     case PropertyType.Unit:
+//       return "Fração";
+//     default:
+//       return "Imóvel";
+//   }
+// }
 
-function docTypeLabel(type: DocumentType) {
-  // Não precisa ser completo — podes expandir quando quiseres
-  switch (type) {
-    case DocumentType.CadernetaPredial:
-      return "Caderneta Predial";
-    case DocumentType.CertidaoPermanenteRegistoPredial:
-      return "Certidão Permanente";
-    case DocumentType.TituloAquisicaoOuEscritura:
-      return "Escritura / Título";
-    case DocumentType.LicencaUtilizacaoOuIsencao:
-      return "Licença / Isenção";
-    case DocumentType.CertificadoEnergetico:
-      return "Certificado Energético";
-    case DocumentType.ComprovativoPagamentoIMI:
-      return "Comprovativo IMI";
-    case DocumentType.ContratoArrendamento:
-      return "Contrato de Arrendamento";
-    case DocumentType.PlantaLocalizacao:
-      return "Planta de Localização";
-    case DocumentType.LevantamentoTopografico:
-      return "Levantamento Topográfico";
-    case DocumentType.InformacaoPreviaOuPIP:
-      return "Informação Prévia / PIP";
-    case DocumentType.AlvaraLoteamento:
-      return "Alvará de Loteamento";
-    case DocumentType.RegulamentoCondominio:
-      return "Regulamento do Condomínio";
-    case DocumentType.AtasCondominio:
-      return "Atas do Condomínio";
-    case DocumentType.SeguroEdificioPartesComuns:
-      return "Seguro do Edifício (Partes Comuns)";
-    case DocumentType.RelatorioContasCondominio:
-      return "Relatório de Contas";
-    case DocumentType.MapaQuotasERecibosCondominio:
-      return "Mapa Quotas & Recibos";
-    case DocumentType.ContratoAdministracaoCondominio:
-      return "Administração do Condomínio";
-    case DocumentType.ContratosManutencao:
-      return "Contratos de Manutenção";
-    default:
-      return "Documento";
-  }
-}
+// function docTypeLabel(type: DocumentType) {
+//   // Não precisa ser completo — podes expandir quando quiseres
+//   switch (type) {
+//     case DocumentType.CadernetaPredial:
+//       return "Caderneta Predial";
+//     case DocumentType.CertidaoPermanenteRegistoPredial:
+//       return "Certidão Permanente";
+//     case DocumentType.TituloAquisicaoOuEscritura:
+//       return "Escritura / Título";
+//     case DocumentType.LicencaUtilizacaoOuIsencao:
+//       return "Licença / Isenção";
+//     case DocumentType.CertificadoEnergetico:
+//       return "Certificado Energético";
+//     case DocumentType.ComprovativoPagamentoIMI:
+//       return "Comprovativo IMI";
+//     case DocumentType.ContratoArrendamento:
+//       return "Contrato de Arrendamento";
+//     case DocumentType.PlantaLocalizacao:
+//       return "Planta de Localização";
+//     case DocumentType.LevantamentoTopografico:
+//       return "Levantamento Topográfico";
+//     case DocumentType.InformacaoPreviaOuPIP:
+//       return "Informação Prévia / PIP";
+//     case DocumentType.AlvaraLoteamento:
+//       return "Alvará de Loteamento";
+//     case DocumentType.RegulamentoCondominio:
+//       return "Regulamento do Condomínio";
+//     case DocumentType.AtasCondominio:
+//       return "Atas do Condomínio";
+//     case DocumentType.SeguroEdificioPartesComuns:
+//       return "Seguro do Edifício (Partes Comuns)";
+//     case DocumentType.RelatorioContasCondominio:
+//       return "Relatório de Contas";
+//     case DocumentType.MapaQuotasERecibosCondominio:
+//       return "Mapa Quotas & Recibos";
+//     case DocumentType.ContratoAdministracaoCondominio:
+//       return "Administração do Condomínio";
+//     case DocumentType.ContratosManutencao:
+//       return "Contratos de Manutenção";
+//     default:
+//       return "Documento";
+//   }
+// }
 
 /* -------------------------------- UI bits -------------------------------- */
 
-function Pill({ text }: { text: string }) {
-  return (
-    <View style={styles.pill}>
-      <Text style={styles.pillText}>{text}</Text>
-    </View>
-  );
-}
+// function Pill({ text }: { text: string }) {
+//   return (
+//     <View style={styles.pill}>
+//       <Text style={styles.pillText}>{text}</Text>
+//     </View>
+//   );
+// }
 
 function TypePill({
   text,
@@ -172,71 +170,71 @@ function TypePill({
   );
 }
 
-function DocChecklistRow({
-  title,
-  done,
-  onUpload,
-}: {
-  title: string;
-  done: boolean;
-  onUpload: () => void;
-}) {
-  return (
-    <View style={styles.checkRow}>
-      <View
-        style={[
-          styles.checkDot,
-          done ? styles.checkDotDone : styles.checkDotTodo,
-        ]}
-      >
-        <Ionicons
-          name={done ? "checkmark" : "add"}
-          size={14}
-          color={done ? "#fff" : "#111"}
-        />
-      </View>
+// function DocChecklistRow({
+//   title,
+//   done,
+//   onUpload,
+// }: {
+//   title: string;
+//   done: boolean;
+//   onUpload: () => void;
+// }) {
+//   return (
+//     <View style={styles.checkRow}>
+//       <View
+//         style={[
+//           styles.checkDot,
+//           done ? styles.checkDotDone : styles.checkDotTodo,
+//         ]}
+//       >
+//         <Ionicons
+//           name={done ? "checkmark" : "add"}
+//           size={14}
+//           color={done ? "#fff" : "#111"}
+//         />
+//       </View>
 
-      <Text style={styles.checkTitle} numberOfLines={1}>
-        {title}
-      </Text>
+//       <Text style={styles.checkTitle} numberOfLines={1}>
+//         {title}
+//       </Text>
 
-      {done ? (
-        <View style={styles.donePill}>
-          <Text style={styles.donePillText}>OK</Text>
-        </View>
-      ) : (
-        <Pressable onPress={onUpload} style={styles.uploadMiniBtn}>
-          <Text style={styles.uploadMiniBtnText}>Upload</Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
+//       {done ? (
+//         <View style={styles.donePill}>
+//           <Text style={styles.donePillText}>OK</Text>
+//         </View>
+//       ) : (
+//         <Pressable onPress={onUpload} style={styles.uploadMiniBtn}>
+//           <Text style={styles.uploadMiniBtnText}>Upload</Text>
+//         </Pressable>
+//       )}
+//     </View>
+//   );
+// }
 
-function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <View style={styles.rowIcon}>
-        <Ionicons name="document-text-outline" size={18} />
-      </View>
+// function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
+//   return (
+//     <Pressable onPress={onPress} style={styles.row}>
+//       <View style={styles.rowIcon}>
+//         <Ionicons name="document-text-outline" size={18} />
+//       </View>
 
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {docTypeLabel(d.type)}
-        </Text>
-        <Text style={styles.rowSubtitle} numberOfLines={1}>
-          {d.expirationDate
-            ? `Validade: ${new Date(d.expirationDate).toLocaleDateString(
-                "pt-PT"
-              )}`
-            : "Sem validade"}
-        </Text>
-      </View>
+//       <View style={{ flex: 1 }}>
+//         <Text style={styles.rowTitle} numberOfLines={1}>
+//           {docTypeLabel(d.type)}
+//         </Text>
+//         <Text style={styles.rowSubtitle} numberOfLines={1}>
+//           {d.expirationDate
+//             ? `Validade: ${new Date(d.expirationDate).toLocaleDateString(
+//                 "pt-PT"
+//               )}`
+//             : "Sem validade"}
+//         </Text>
+//       </View>
 
-      <Text style={styles.rowChevron}>›</Text>
-    </Pressable>
-  );
-}
+//       <Text style={styles.rowChevron}>›</Text>
+//     </Pressable>
+//   );
+// }
 
 /* -------------------------------- Screen -------------------------------- */
 
@@ -244,6 +242,7 @@ export default function AddPropertyScreen() {
   const router = useRouter();
   const { setError } = useError();
   const { user } = useContext(AuthContext);
+  const queryClient = useQueryClient(); // <--- adiciona isto
 
   const [name, setName] = useState("");
   const [streetName, setStreetName] = useState("");
@@ -259,6 +258,7 @@ export default function AddPropertyScreen() {
   const {
     data: propertyStats,
     isLoading: statsLoading,
+    isFetching: statsFetching,
     error: statsError,
     refetch: refetchStats,
   } = useQuery({
@@ -268,7 +268,7 @@ export default function AddPropertyScreen() {
       return {
         count: res.total ?? 0,
         limit:
-          user?.plan?.limits?.MaxProperties ?? user?.maxProperties ?? undefined,
+          user?.plan?.limits?.maxProperties ?? user?.maxProperties ?? undefined,
       };
     },
     enabled: !!user,
@@ -282,10 +282,8 @@ export default function AddPropertyScreen() {
     return propertyLimit !== undefined && propertyCount >= propertyLimit;
   }, [propertyCount, propertyLimit]);
 
-  // Depois de criar
-  const [created, setCreated] = useState<Property | null>(null);
-  const [, setLoadingProperty] = useState(false);
-  const [, setRefreshing] = useState(false);
+  // Created property id state
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => {
     return (
@@ -293,91 +291,144 @@ export default function AddPropertyScreen() {
     );
   }, [name, streetName, submitting]);
 
-  const docs = created?.documents ?? [];
-  const recommended = useMemo(
-    () => getRecommendedDocTypesForPropertyType(type),
-    [type]
-  );
+  // const docs = created?.documents ?? [];
+  // const recommended = useMemo(
+  //   () => getRecommendedDocTypesForPropertyType(type),
+  //   [type]
+  // );
 
-  const existingTypes = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
+  // const existingTypes = useMemo(() => new Set(docs.map((d) => d.type)), [docs]);
 
-  const missingCount = useMemo(() => {
-    return recommended.filter((t) => !existingTypes.has(t)).length;
-  }, [recommended, existingTypes]);
+  // const missingCount = useMemo(() => {
+  //   return recommended.filter((t) => !existingTypes.has(t)).length;
+  // }, [recommended, existingTypes]);
 
-  const fetchCreatedProperty = async (propertyId: string, silent = false) => {
-    if (!silent) setLoadingProperty(true);
-    try {
-      const res = await api.get(`/property/${propertyId}`);
-      console.log({ res });
-      setCreated(res.data as Property);
-    } catch (error: any) {
-      console.log({ error });
-      setError(error?.response?.data); // <-- set error context
-    } finally {
-      if (!silent) setLoadingProperty(false);
-    }
-  };
+  // React Query for fetching created property
+  const {
+    data: created,
+    isLoading: createdLoading,
+    isFetching: createdFetching,
+    error: createdError,
+    refetch: refetchCreated,
+  } = useQuery({
+    queryKey: ["created-property", createdId],
+    queryFn: async () => {
+      if (!createdId) return null;
+      const res = await api.get(`/property/${createdId}`);
+      return res.data as Property;
+    },
+    enabled: !!createdId,
+    staleTime: 0,
+  });
 
-  const submit = async () => {
-    setMessage(null);
-
-    const payload: CreatePropertyPayload = {
-      name: name.trim(),
-      streetName: streetName.trim(),
-      type,
-    };
-
-    try {
-      setSubmitting(true);
+  // React Query mutation for creating property
+  const createPropertyMutation = useMutation({
+    mutationFn: async (payload: CreatePropertyPayload) => {
       const res = await api.post("/property", payload);
-
-      const createdObj = res.data as Property;
-      const newId = createdObj?.id;
-
+      return res.data as Property;
+    },
+    onSuccess: (createdObj) => {
       setMessage({
         type: "success",
         text: "Imóvel criado! Agora adiciona os documentos essenciais.",
       });
-
-      if (newId) {
-        // Em vez de navegar já, mantemos nesta página e mostramos “Passo 2”
-        await fetchCreatedProperty(newId, true);
-      } else {
-        setCreated(createdObj ?? null);
+      if (createdObj?.id) {
+        setCreatedId(createdObj.id);
       }
-    } catch (err) {
+      queryClient.invalidateQueries({ queryKey: ["properties"] }); // <--- invalida cache
+      queryClient.invalidateQueries({ queryKey: ["property-stats"] }); // <--- se usares stats
+      router.replace("/property");
+    },
+    onError: (err: any) => {
       setMessage({
         type: "destructive",
-        text: err.response.data,
+        text: err?.response?.data,
       });
       setError(err?.response?.data);
-    } finally {
+    },
+    onSettled: () => {
       setSubmitting(false);
-    }
-  };
+    },
+  });
 
-  const onRefresh = async () => {
-    if (!created?.id) return;
-    setRefreshing(true);
-    await fetchCreatedProperty(created.id, true);
-    setRefreshing(false);
-  };
-
-  const goUpload = (docType?: DocumentType) => {
-    if (!created?.id) return;
-
-    router.push({
-      pathname: "/documents/upload",
-      params: {
-        propertyId: created.id,
-        // ✅ passa o tipo para o upload pré-selecionar (adapta no teu upload screen)
-        documentType: docType ? String(docType) : undefined,
-      },
+  const submit = async () => {
+    setMessage(null);
+    setSubmitting(true);
+    createPropertyMutation.mutate({
+      name: name.trim(),
+      streetName: streetName.trim(),
+      type,
     });
   };
 
-  if (statsLoading) {
+  const onRefresh = async () => {
+    if (!createdId) return;
+    await refetchCreated();
+  };
+  // Use React Query loading/error states for created property
+  if (createdLoading || createdFetching) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator />
+          <Text style={{ marginTop: 16, color: "#666", fontWeight: "800" }}>
+            A carregar imóvel criado…
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (createdError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
+          <Text
+            style={{
+              marginTop: 16,
+              fontSize: 16,
+              color: "#F87171",
+              fontWeight: "700",
+            }}
+          >
+            Erro ao carregar imóvel criado
+          </Text>
+          <Text style={{ marginTop: 8, color: "#6B7280", textAlign: "center" }}>
+            Não foi possível obter o imóvel criado. Tenta novamente.
+          </Text>
+          <Pressable onPress={onRefresh} style={styles.primaryBtn}>
+            <Text style={styles.primaryBtnText}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // const goUpload = (docType?: DocumentType) => {
+  //   if (!created?.id) return;
+
+  //   router.push({
+  //     pathname: "/documents/upload",
+  //     params: {
+  //       propertyId: created.id,
+  //       // ✅ passa o tipo para o upload pré-selecionar (adapta no teu upload screen)
+  //       documentType: docType ? String(docType) : undefined,
+  //     },
+  //   });
+  // };
+
+  // Use React Query loading/error states for stats
+  if (statsLoading || statsFetching) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <View

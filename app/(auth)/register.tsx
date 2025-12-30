@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../../context/AuthContext";
 import { Button } from "@/components/Button";
+import { useMutation } from "@tanstack/react-query";
 
 function ErrorCard({
   message,
@@ -77,41 +78,46 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [localError, setLocalError] = useState("");
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!fullName || !email || !password || !confirmPassword) {
+        throw new Error("Por favor, preencha todos os campos.");
+      }
+      if (password !== confirmPassword) {
+        throw new Error("As passwords não coincidem.");
+      }
+      const ok = await register(fullName, email, password, confirmPassword);
+      if (!ok) throw new Error("Algum erro ocorreu. Tente mais tarde.");
+      return ok;
+    },
+    onSuccess: () => {
+      router.replace("/(auth)/login");
+    },
+    onError: (e: any) => {
+      setLocalError(
+        e?.response?.data?.message ||
+          e?.message ||
+          "Algum erro ocorreu. Tente mais tarde."
+      );
+    },
+  });
 
   const canSubmit = useMemo(() => {
-    return !!fullName && !!email && !!password && !!confirmPassword && !loading;
-  }, [fullName, email, password, confirmPassword, loading]);
-
-  const handleRegister = async () => {
-    if (!fullName || !email || !password || !confirmPassword) {
-      setError("Por favor, preencha todos os campos.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("As passwords não coincidem.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    try {
-      await register(fullName, email, password, confirmPassword);
-      router.replace("/(auth)/login");
-    } catch (e: any) {
-      setError(
-        e?.response?.data?.message || "Algum erro ocorreu. Tente mais tarde."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    return (
+      !!fullName &&
+      !!email &&
+      !!password &&
+      !!confirmPassword &&
+      !mutation.isPending
+    );
+  }, [fullName, email, password, confirmPassword, mutation]);
 
   useEffect(() => {
-    if (error && fullName && email && password && confirmPassword) setError("");
-  }, [fullName, email, password, confirmPassword]);
+    if (localError && fullName && email && password && confirmPassword)
+      setLocalError("");
+  }, [fullName, email, password, confirmPassword, localError]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -128,7 +134,9 @@ export default function RegisterScreen() {
           <Text style={styles.brandSub}>A sua casa organizada e segura</Text>
         </View>
 
-        {!!error && <ErrorCard message={error} onClose={() => setError("")} />}
+        {!!localError && (
+          <ErrorCard message={localError} onClose={() => setLocalError("")} />
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Começar</Text>
@@ -173,9 +181,9 @@ export default function RegisterScreen() {
           <View style={{ height: 12 }} />
 
           <Button
-            title={loading ? "A criar…" : "Criar Conta"}
-            onPress={handleRegister}
-            loading={loading}
+            title={mutation.isPending ? "A criar…" : "Criar Conta"}
+            onPress={() => mutation.mutate()}
+            loading={mutation.isPending}
             disabled={!canSubmit}
           />
 

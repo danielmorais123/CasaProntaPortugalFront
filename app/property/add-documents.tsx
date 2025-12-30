@@ -14,15 +14,16 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { getSuggestionsByPropertyType } from "@/hooks/services/document";
-import { DocumentType, DocumentTypeName } from "@/types/models";
+import { DocumentType, DocumentTypeName, PropertyType } from "@/types/models";
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/hooks/services/api";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { AuthContext } from "@/context/AuthContext";
+import { propertyTypeFromString } from "@/utils/property";
+import { documentTypeToId } from "@/utils/document";
 
-type PropertyType = "apartment" | "house" | "land" | "building" | "other";
 type DocumentScope = string;
 
 type SuggestedDoc = {
@@ -57,7 +58,7 @@ export default function DocumentUploadSuggestionsScreen() {
   }>();
 
   const propertyId = params.propertyId;
-  const propertyType = (params.propertyType || "other") as PropertyType;
+  const propertyType = propertyTypeFromString(params.propertyType);
 
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +89,7 @@ export default function DocumentUploadSuggestionsScreen() {
     queryKey: ["suggestions", propertyType, propertyId],
     queryFn: async () => {
       if (!propertyId) return [];
-      const data: number[] = await getSuggestionsByPropertyType(propertyType);
+      const data: number[] = await getSuggestionsByPropertyType(propertyType!);
       return data.map((typeNum) => ({
         type: typeNum,
         title: DocumentTypeName[typeNum as DocumentType] || "Documento",
@@ -134,15 +135,12 @@ export default function DocumentUploadSuggestionsScreen() {
 
         if (planInfo.canUploadViaBackend) {
           const form = new FormData();
-          form.append("file", {
-            // @ts-ignore
-            uri: file.uri,
-            name: file.name || "document",
-            type: file.mimeType || "application/octet-stream",
-          });
+          // Fetch the file as a blob
+          const fileBlob = await fetch(file.uri).then((res) => res.blob());
+          form.append("file", fileBlob, file.name);
 
           form.append("PropertyId", propertyId);
-          form.append("Type", s.type);
+          form.append("Type", String(documentTypeToId(s.type)));
           if (s.category) form.append("Category", s.category);
 
           await api.post(`/api/document/upload`, form, {
@@ -360,13 +358,13 @@ export default function DocumentUploadSuggestionsScreen() {
         />
       )}
 
-      <View style={styles.footer}>
+      {/* <View style={styles.footer}>
         <Ionicons name="information-circle-outline" size={18} color="#6B7280" />
         <Text style={styles.footerText}>
           Business+ usa upload via API (multipart) e download via API para
           documentos encriptados.
         </Text>
-      </View>
+      </View> */}
     </SafeAreaView>
   );
 }

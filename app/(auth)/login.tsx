@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,32 +8,14 @@ import {
   Keyboard,
   Pressable,
   ActivityIndicator,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { AuthContext } from "../../context/AuthContext";
 import { useError } from "@/context/ErrorContext";
 import { Button } from "@/components/Button";
-
-function ErrorCard({
-  message,
-  onClose,
-}: {
-  message: string;
-  onClose: () => void;
-}) {
-  return (
-    <View style={styles.errorBox}>
-      <View style={styles.errorIcon}>
-        <Ionicons name="alert-circle" size={18} color="#B91C1C" />
-      </View>
-      <Text style={styles.errorText}>{message}</Text>
-      <Pressable onPress={onClose} style={styles.errorClose}>
-        <Ionicons name="close" size={18} color="#64748B" />
-      </Pressable>
-    </View>
-  );
-}
+import { useMutation } from "@tanstack/react-query";
 
 function InputRow({
   icon,
@@ -79,39 +61,34 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [localError, setLocalError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!email || !password) {
+        throw new Error("Por favor, preencha todos os campos.");
+      }
+      const ok = await login(email, password);
+      if (!ok) throw new Error("Email ou password incorretos.");
+      return ok;
+    },
+    onSuccess: () => {
+      router.replace("/");
+    },
+    onError: (err: any) => {
+      setError(err?.message || "Ocorreu um erro inesperado.");
+    },
+  });
 
   const canSubmit = useMemo(
-    () => !!email && !!password && !loading,
-    [email, password, loading]
+    () => !!email && !!password && !mutation.isPending,
+    [email, password, mutation.isPending]
   );
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      setLocalError("Por favor, preencha todos os campos.");
-      return;
-    }
-    setLoading(true);
-    setLocalError("");
-    try {
-      const ok = await login(email, password);
-      if (!ok) setLocalError("Email ou password incorretos.");
-      else router.replace("/");
-    } catch (err: any) {
-      setError(err?.message || "Ocorreu um erro inesperado.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (localError && email && password) setLocalError("");
-  }, [email, password]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.screen}>
+        <TouchableOpacity onPress={() => router.push("/")}>
+          <Text>Home</Text>
+        </TouchableOpacity>
         {/* Top brand */}
         <View style={styles.brand}>
           <View style={styles.brandIcon}>
@@ -120,10 +97,6 @@ export default function LoginScreen() {
           <Text style={styles.brandName}>CasaPronta</Text>
           <Text style={styles.brandSub}>O cofre digital dos seus imóveis</Text>
         </View>
-
-        {!!localError && (
-          <ErrorCard message={localError} onClose={() => setLocalError("")} />
-        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Entrar</Text>
@@ -160,9 +133,9 @@ export default function LoginScreen() {
           <View style={{ height: 10 }} />
 
           <Button
-            title={loading ? "A entrar…" : "Entrar"}
-            onPress={handleLogin}
-            loading={loading}
+            title={mutation.isPending ? "A entrar…" : "Entrar"}
+            onPress={() => mutation.mutate()}
+            loading={mutation.isPending}
             disabled={!canSubmit}
           />
 
@@ -189,7 +162,7 @@ export default function LoginScreen() {
         </Pressable>
 
         {/* small loading overlay (optional) */}
-        {loading ? (
+        {mutation.isPending ? (
           <View style={styles.loadingOverlay} pointerEvents="none">
             <ActivityIndicator />
           </View>

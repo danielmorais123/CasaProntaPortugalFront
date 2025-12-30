@@ -274,7 +274,7 @@ export default function PropertyDetailScreen() {
       </SafeAreaView>
     );
   }
-
+  console.log({ error, item });
   if (error || !item) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -290,6 +290,11 @@ export default function PropertyDetailScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  function onUpgrade(): void {
+    // Redirect user to the upgrade or subscription page
+    router.push("/upgrade");
   }
 
   return (

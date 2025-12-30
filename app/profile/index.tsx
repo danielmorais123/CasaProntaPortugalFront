@@ -37,10 +37,9 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(user?.email || "");
 
   // subscription info (from user)
-  const planName = user?.planName || user?.plan?.name || "FREE";
-  const maxProperties = user?.plan?.limits?.MaxProperties ?? 1;
-  const maxDocuments = user?.plan?.limits?.MaxDocuments ?? 20;
-
+  const planName = user?.planName;
+  const maxProperties = user?.plan?.limits?.maxProperties ?? 1;
+  const maxDocuments = user?.plan?.limits?.maxDocuments;
   const [alertMessage, setAlertMessage] = useState<{
     type: "success" | "destructive";
     message: string;
@@ -84,9 +83,13 @@ export default function ProfileScreen() {
 
   // Get limits from current plan
   const propertyLimit =
-    currentPlanFromApi?.limits?.maxProperties ?? maxProperties ?? 1;
+    currentPlanFromApi?.limits?.maxProperties ?? maxProperties;
   const documentLimit =
-    currentPlanFromApi?.limits?.maxDocuments ?? maxDocuments ?? 20;
+    currentPlanFromApi?.limits?.maxDocuments ?? maxDocuments;
+
+  // Display value: show ∞ if null/undefined
+  const propertyLimitDisplay = propertyLimit == null ? "∞" : propertyLimit;
+  const documentLimitDisplay = documentLimit == null ? "∞" : documentLimit;
 
   // Get actual usage (replace with real values from backend/context)
   const propertyCount = user?.properties?.length ?? 0;
@@ -101,7 +104,7 @@ export default function ProfileScreen() {
   );
   const usagePctDocs = Math.max(
     0,
-    Math.min(1, documentCount / Math.max(1, documentLimit))
+    Math.min(1, documentCount / Math.max(1, Number(documentLimit)))
   );
 
   const openManage = async () => {
@@ -207,18 +210,18 @@ export default function ProfileScreen() {
             <LimitChip
               icon="home-outline"
               label="Imóveis"
-              value={`${propertyCount} / ${propertyLimit}`}
+              value={`${propertyCount} / ${propertyLimitDisplay}`}
             />
             <LimitChip
               icon="document-text-outline"
               label="Documentos"
-              value={`${documentCount} / ${documentLimit}`}
+              value={`${documentCount} / ${documentLimitDisplay}`}
             />
             <LimitChip
               icon="sparkles-outline"
               label="IA"
-              value={currentPlanFromApi?.limits?.AiOnUpload ? "Ativa" : "—"}
-              accent={currentPlanFromApi?.limits?.AiOnUpload}
+              value={currentPlanFromApi?.limits?.aiOnUpload ? "Ativa" : "—"}
+              accent={currentPlanFromApi?.limits?.aiOnUpload}
             />
           </View>
 
@@ -226,11 +229,11 @@ export default function ProfileScreen() {
 
           <Text style={styles.sectionLabel}>Uso</Text>
           <ProgressRow
-            label={`Imóveis (${propertyCount}/${propertyLimit})`}
+            label={`Imóveis (${propertyCount}/${propertyLimitDisplay})`}
             pct={usagePctProps}
           />
           <ProgressRow
-            label={`Documentos (${documentCount}/${documentLimit})`}
+            label={`Documentos (${documentCount}/${documentLimitDisplay})`}
             pct={usagePctDocs}
           />
 
@@ -498,28 +501,26 @@ function SubscriptionOverlaySheet({
                       ) : null}
 
                       <View style={sheet.metaRow}>
-                        {typeof p.limits?.MaxProperties === "number" ? (
-                          <Text style={sheet.metaText}>
-                            Imóveis:{" "}
-                            <Text style={sheet.metaStrong}>
-                              {p.limits.MaxProperties}
-                            </Text>
+                        <Text style={sheet.metaText}>
+                          Imóveis:{" "}
+                          <Text style={sheet.metaStrong}>
+                            {p.limits?.maxProperties == null
+                              ? "∞"
+                              : p.limits.maxProperties}
                           </Text>
-                        ) : null}
+                        </Text>
 
-                        {typeof p.limits?.MaxDocuments === "number" ? (
-                          <>
-                            <Text style={sheet.metaDot}>•</Text>
-                            <Text style={sheet.metaText}>
-                              Docs:{" "}
-                              <Text style={sheet.metaStrong}>
-                                {p.limits.MaxDocuments}
-                              </Text>
-                            </Text>
-                          </>
-                        ) : null}
+                        <Text style={sheet.metaDot}>•</Text>
+                        <Text style={sheet.metaText}>
+                          Docs:{" "}
+                          <Text style={sheet.metaStrong}>
+                            {p.limits?.maxDocuments == null
+                              ? "∞"
+                              : p.limits.maxDocuments}
+                          </Text>
+                        </Text>
 
-                        {p.limits?.AiOnUpload ? (
+                        {p.limits?.aiOnUpload ? (
                           <>
                             <Text style={sheet.metaDot}>•</Text>
                             <Text style={sheet.metaAi}>IA</Text>

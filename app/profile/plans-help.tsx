@@ -79,15 +79,15 @@ function Accordion({
 function limitsLine(limits: PlanLimits) {
   const parts: string[] = [];
 
-  if (limits.MaxProperties != null)
-    parts.push(`${limits.MaxProperties} imóveis`);
-  if (limits.MaxDocuments != null)
-    parts.push(`${limits.MaxDocuments} documentos`);
-  if (limits.MaxGuests != null) parts.push(`${limits.MaxGuests} convidados`);
+  if (limits.maxProperties != null)
+    parts.push(`${limits.maxProperties} imóveis`);
+  if (limits.maxDocuments != null)
+    parts.push(`${limits.maxDocuments} documentos`);
+  if (limits.maxGuests != null) parts.push(`${limits.maxGuests} convidados`);
 
-  if (limits.MaxBuildings != null) parts.push(`${limits.MaxBuildings} prédios`);
-  if (limits.MaxUnitsPerBuilding != null)
-    parts.push(`${limits.MaxUnitsPerBuilding} frações/prédio`);
+  if (limits.maxBuildings != null) parts.push(`${limits.maxBuildings} prédios`);
+  if (limits.maxUnitsPerBuilding != null)
+    parts.push(`${limits.maxUnitsPerBuilding} frações/prédio`);
 
   if (parts.length === 0) return "Limites por contrato";
   return parts.join(" • ");
@@ -146,7 +146,7 @@ export default function PlansHelpScreen() {
 
   const showAiBadge = useMemo(() => {
     const plan = plans?.find((p) => p.code === currentCode);
-    return plan?.limits?.AiOnUpload ?? false;
+    return plan?.limits?.aiOnUpload ?? false;
   }, [plans, currentCode]);
 
   function onSelectPlan(plan: SubscriptionPlanDto) {
@@ -170,11 +170,11 @@ export default function PlansHelpScreen() {
           <Pill text={showAiBadge ? "IA no upload" : "Sem IA no upload"} />
         </View>
 
-        {plansLoading || currentLoading ? (
+        {plansLoading ? (
           <View style={styles.banner}>
             <Text style={styles.bannerTitle}>A carregar planos…</Text>
           </View>
-        ) : plansError || currentError ? (
+        ) : plansError ? (
           <View style={styles.banner}>
             <Text style={styles.bannerTitle}>
               Não foi possível carregar os planos
@@ -284,7 +284,7 @@ export default function PlansHelpScreen() {
                   </Text>
                 ) : null}
 
-                {p.limits?.AiOnUpload ? (
+                {p.limits?.aiOnUpload ? (
                   <Text style={styles.note}>
                     IA: analisa automaticamente os documentos{" "}
                     <Text style={styles.noteStrong}>no momento do upload</Text>.

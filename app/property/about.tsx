@@ -17,12 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
-import { SubscriptionPlanDto } from "@/types/models";
-
-type CurrentSubscriptionDto = {
-  planCode: string;
-  status: string;
-};
+import { AuthContext } from "@/context/AuthContext";
 
 type PropertyTypeKey = "House" | "Apartment" | "Land" | "Building";
 type PropertyCard = {
@@ -92,7 +87,7 @@ function Accordion({
     <View style={styles.accordion}>
       <Pressable onPress={toggle} style={styles.accordionHeader}>
         <Text style={styles.accordionTitle}>{title}</Text>
-        <Text style={styles.accordionChevron}>{open ? "−" : "+"}</Text>
+        <Text style={styles.accordionChevron}>{open ? "-" : "+"}</Text>
       </Pressable>
       {open ? <View style={styles.accordionBody}>{children}</View> : null}
     </View>
@@ -101,6 +96,7 @@ function Accordion({
 
 export default function CreatePropertyHelpScreen() {
   const router = useRouter();
+  const { user } = React.useContext(AuthContext); // <-- add this
   const [gateMessage, setGateMessage] = useState<string | null>(null);
 
   // React Query for plans
@@ -117,21 +113,7 @@ export default function CreatePropertyHelpScreen() {
     staleTime: 1000 * 60 * 10,
   });
 
-  // React Query for current subscription
-  const {
-    data: current,
-    isLoading: currentLoading,
-    error: currentError,
-  } = useQuery({
-    queryKey: ["current-subscription"],
-    queryFn: async () => {
-      const res = await api.get("/api/subscriptions/current");
-      return res.data;
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const planCode = current?.planCode ?? "free";
+  const planCode = user?.planCode ?? "free";
   const canManageBuildings = useMemo(
     () => planCode === "portfolio" || planCode === "enterprise",
     [planCode]
@@ -240,7 +222,7 @@ export default function CreatePropertyHelpScreen() {
     router.push("/profile/subscription");
   }
 
-  if (plansLoading || currentLoading) {
+  if (plansLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.banner}>
@@ -251,7 +233,7 @@ export default function CreatePropertyHelpScreen() {
     );
   }
 
-  if (plansError || currentError) {
+  if (plansError) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.banner}>

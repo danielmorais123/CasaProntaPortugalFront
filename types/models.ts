@@ -171,6 +171,7 @@ export interface User {
   createdAt?: string;
   subscription?: Subscription;
   permissions?: PropertyPermission[];
+  properties?: Property[];
   payments?: Payment[];
   alerts?: Alert[];
   planName?: string;

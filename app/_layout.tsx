@@ -1,22 +1,11 @@
+import { useState, useEffect, useContext } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
-import { useContext, useEffect } from "react";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthContext, AuthProvider } from "../context/AuthContext";
 import { ErrorProvider, useError } from "@/context/ErrorContext";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// import {
-//   useFonts as useRoboto,
-//   Roboto_400Regular,
-//   Roboto_700Bold,
-// } from "@expo-google-fonts/roboto";
-// import { Text } from "react-native";
-// import {
-//   useFonts as usePoppins,
-//   Poppins_400Regular,
-//   Poppins_700Bold,
-// } from "@expo-google-fonts/poppins";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 const queryClient = new QueryClient();
 
@@ -25,18 +14,21 @@ function RootNavigation() {
   const router = useRouter();
   const { user, loading } = useContext(AuthContext);
   const { error, clearError } = useError();
-  console.log({ error });
+
+  const [layoutReady, setLayoutReady] = useState(false);
+
   useEffect(() => {
-    if (loading) return;
+    setLayoutReady(true);
+  }, []);
 
-    // Only redirect to login if not already on login or register
-    const isAuthRoute = segments[0] === "(auth)";
-
-    if (!user && !isAuthRoute) {
-      console.log("Entra");
-      router.replace("/(auth)/login");
+  useEffect(() => {
+    if (!loading && layoutReady) {
+      const isAuthRoute = segments[0] === "(auth)";
+      if (!user && !isAuthRoute) {
+        router.replace("/(auth)/login");
+      }
     }
-  }, [segments, user, loading, router]);
+  }, [segments, user, loading, layoutReady, router]);
 
   return (
     <>
@@ -47,10 +39,6 @@ function RootNavigation() {
 }
 
 export default function Layout() {
-  // Choose one font family to use (uncomment the one you want)
-  //const [fontsLoaded] = usePoppins({ Poppins_400Regular, Poppins_700Bold });
-  // const [fontsLoaded] = useRoboto({ Roboto_400Regular, Roboto_700Bold });
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
