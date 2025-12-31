@@ -1,3 +1,4 @@
+// Restrict property types by subscription plan
 import React, { useMemo, useState, useContext } from "react";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
@@ -14,9 +15,58 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { api } from "@/hooks/services/api";
-import { Property, PropertyType, DocumentType } from "@/types/models";
+import { Property, PropertyType } from "@/types/models";
 import { useError } from "@/context/ErrorContext"; // <-- import
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+const allowedTypesByPlan: Record<string, PropertyType[]> = {
+  free: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
+  starter: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
+  pro: [
+    PropertyType.House,
+    PropertyType.Apartment,
+    PropertyType.Land,
+    PropertyType.Building,
+  ],
+  business: [
+    PropertyType.House,
+    PropertyType.Apartment,
+    PropertyType.Land,
+    PropertyType.Building,
+    PropertyType.Unit,
+  ],
+  portfolio: [
+    PropertyType.House,
+    PropertyType.Apartment,
+    PropertyType.Land,
+    PropertyType.Building,
+    PropertyType.Unit,
+  ],
+  enterprise: [
+    PropertyType.House,
+    PropertyType.Apartment,
+    PropertyType.Land,
+    PropertyType.Building,
+    PropertyType.Unit,
+  ],
+};
+
+const propertyTypeLabel = (t: PropertyType) => {
+  switch (t) {
+    case PropertyType.House:
+      return "Moradia";
+    case PropertyType.Apartment:
+      return "Apartamento";
+    case PropertyType.Land:
+      return "Terreno";
+    case PropertyType.Building:
+      return "Prédio";
+    case PropertyType.Unit:
+      return "Fração";
+    default:
+      return "Imóvel";
+  }
+};
 
 type CreatePropertyPayload = {
   name: string;
@@ -253,7 +303,9 @@ export default function AddPropertyScreen() {
     type: "success" | "destructive";
     text: string;
   } | null>(null);
-
+  const userPlan = user?.planCode?.toLowerCase() || "free";
+  const allowedTypes =
+    allowedTypesByPlan[userPlan] || allowedTypesByPlan["free"];
   // Use React Query for property count and limit
   const {
     data: propertyStats,
@@ -545,31 +597,14 @@ export default function AddPropertyScreen() {
 
             <Text style={[styles.label, { marginTop: 12 }]}>Tipo</Text>
             <View style={styles.typeRow}>
-              <TypePill
-                text="Apartamento"
-                active={type === PropertyType.Apartment}
-                onPress={() => setType(PropertyType.Apartment)}
-              />
-              <TypePill
-                text="Moradia"
-                active={type === PropertyType.House}
-                onPress={() => setType(PropertyType.House)}
-              />
-              <TypePill
-                text="Terreno"
-                active={type === PropertyType.Land}
-                onPress={() => setType(PropertyType.Land)}
-              />
-              <TypePill
-                text="Prédio"
-                active={type === PropertyType.Building}
-                onPress={() => setType(PropertyType.Building)}
-              />
-              <TypePill
-                text="Fração"
-                active={type === PropertyType.Unit}
-                onPress={() => setType(PropertyType.Unit)}
-              />
+              {allowedTypes.map((t) => (
+                <TypePill
+                  key={t}
+                  text={propertyTypeLabel(t)}
+                  active={type === t}
+                  onPress={() => setType(t)}
+                />
+              ))}
             </View>
 
             <View style={{ height: 14 }} />

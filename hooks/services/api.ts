@@ -1,12 +1,23 @@
 import axios from "axios";
+import { Platform } from "react-native";
 
-const API_URL = "https://c15gz92t-5084.uks1.devtunnels.ms/api"; // Use your computer's LAN IP// 10.0.2.2 = Android Emulator → muda se necessário
+// @ts-ignore
+const MAC_API_URL =
+  process.env.MAC_API_URL ?? "https://3xd74l54-5084.uks1.devtunnels.ms/api";
+// @ts-ignore
+const WINDOWS_API_URL =
+  process.env.WINDOWS_API_URL ?? "https://c15gz92t-5084.uks1.devtunnels.ms/api";
+
+const API_URL =
+  Platform.OS === "ios" || Platform.OS === "macos"
+    ? MAC_API_URL
+    : WINDOWS_API_URL;
 
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
 });
-
+console.log("API_URL:", API_URL);
 // Automatically refresh token when 401 occurs
 api.interceptors.response.use(
   (response) => response,

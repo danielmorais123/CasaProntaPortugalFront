@@ -79,7 +79,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState("");
-
+  console.log("Render RegisterScreen");
   const mutation = useMutation({
     mutationFn: async () => {
       if (!fullName || !email || !password || !confirmPassword) {
@@ -88,6 +88,7 @@ export default function RegisterScreen() {
       if (password !== confirmPassword) {
         throw new Error("As passwords não coincidem.");
       }
+      console.log("Calling register mutation");
       const ok = await register(fullName, email, password, confirmPassword);
       if (!ok) throw new Error("Algum erro ocorreu. Tente mais tarde.");
       return ok;

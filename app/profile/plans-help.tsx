@@ -154,6 +154,10 @@ export default function PlansHelpScreen() {
       router.push("/profile/plans-help");
       return;
     }
+    router.push({
+      pathname: "/payments/payment",
+      params: { planCode: plan.code },
+    });
     // router.push(`/profile/subscribe?plan=${plan.code}`);
   }
 
