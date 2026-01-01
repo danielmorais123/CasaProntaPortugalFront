@@ -11,7 +11,6 @@ export const register = async (
   password: string,
   confirmPassword: string
 ) => {
-  console.log({ confirmPassword });
   const response = await api.post("/auth/register", {
     name,
     email,
@@ -24,7 +23,12 @@ export const me = async () => {
   const response = await api.get("/auth/me");
   return response.data;
 };
-
+export async function verifyPassword(
+  password: string
+): Promise<{ valid: boolean }> {
+  const res = await api.post("/auth/verify-password", { password });
+  return res.data;
+}
 export const profileUserLoggedIn = async () => {
   const response = await api.get("/auth/profile");
   return response.data;

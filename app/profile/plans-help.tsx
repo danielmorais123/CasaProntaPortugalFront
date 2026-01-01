@@ -14,18 +14,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import {
-  getPlans,
-  getCurrentUserSubscription,
-} from "@/hooks/services/subscription";
+import { getPlans } from "@/hooks/services/subscription";
 import { PlanLimits, SubscriptionPlanDto } from "@/types/models";
 import { useQuery } from "@tanstack/react-query";
 import { AuthContext } from "@/context/AuthContext";
-
-type CurrentSubscriptionDto = {
-  planCode: string;
-  status: string;
-};
 
 if (
   Platform.OS === "android" &&

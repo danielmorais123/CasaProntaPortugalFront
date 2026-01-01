@@ -634,7 +634,7 @@ export default function AddPropertyScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => router.push("/property/create-help")}
+              onPress={() => router.push("/property/about")}
               style={styles.secondaryBtn}
             >
               <Text style={styles.secondaryBtnText}>Ver tipos de imóveis</Text>

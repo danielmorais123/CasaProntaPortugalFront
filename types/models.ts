@@ -241,6 +241,7 @@ export type PlanLimits = {
   maxUnitsPerBuilding?: number;
   aiOnUpload?: boolean;
   maxUploadMb?: number;
+  canEncrypt?: boolean;
 };
 
 export type SubscriptionPlanDto = {

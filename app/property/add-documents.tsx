@@ -64,11 +64,7 @@ export default function DocumentUploadSuggestionsScreen() {
 
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const {
-    data: plans = [],
-    isLoading: plansLoading,
-    error: plansError,
-  } = useQuery({
+  const { data: plans = [] } = useQuery({
     queryKey: ["plans"],
     queryFn: getPlans,
     staleTime: 1000 * 60 * 10,

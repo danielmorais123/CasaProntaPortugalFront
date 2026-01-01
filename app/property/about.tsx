@@ -16,8 +16,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/hooks/services/api";
 import { AuthContext } from "@/context/AuthContext";
+import { getPlans } from "@/hooks/services/subscription";
 
 type PropertyTypeKey = "House" | "Apartment" | "Land" | "Building";
 type PropertyCard = {
@@ -107,8 +107,8 @@ export default function CreatePropertyHelpScreen() {
   } = useQuery({
     queryKey: ["plans"],
     queryFn: async () => {
-      const res = await api.get("/api/subscriptions/plans");
-      return res.data;
+      const res = await getPlans();
+      return res;
     },
     staleTime: 1000 * 60 * 10,
   });
@@ -219,7 +219,7 @@ export default function CreatePropertyHelpScreen() {
   }
 
   function goToPlans() {
-    router.push("/profile/subscription");
+    router.push("/profile/plans-help");
   }
 
   if (plansLoading) {
@@ -259,7 +259,7 @@ export default function CreatePropertyHelpScreen() {
 
         <View style={styles.metaRow}>
           <Pill text={`Plano: ${planCode.toUpperCase()}`} />
-          {plans?.find((p) => p.code === planCode)?.limits?.AiOnUpload ? (
+          {plans?.find((p) => p.code === planCode)?.limits?.aiOnUpload ? (
             <Pill text="IA no upload" />
           ) : (
             <Pill text="Sem IA no upload" />
@@ -356,7 +356,7 @@ export default function CreatePropertyHelpScreen() {
 
           <Text style={styles.note}>
             Nota: Se queres gerir apenas a tua fração, escolhe
-            <Text style={styles.noteStrong}>Apartamento</Text>. “Prédio” é para
+            <Text style={styles.noteStrong}> Apartamento</Text>. “Prédio” é para
             partes comuns + frações.
           </Text>
         </View>
@@ -366,17 +366,18 @@ export default function CreatePropertyHelpScreen() {
         <Accordion title="Tenho um apartamento num prédio. Crio “Apartamento” ou “Prédio”?">
           <Text style={styles.faqText}>
             Se queres só a tua documentação (fração), cria
-            <Text style={styles.noteStrong}>Apartamento</Text>. Se és
+            <Text style={styles.noteStrong}> Apartamento</Text>. Se és
             gestão/condomínio e queres partes comuns + frações, cria
-            <Text style={styles.noteStrong}>Prédio</Text>.
+            <Text style={styles.noteStrong}> Prédio</Text>.
           </Text>
         </Accordion>
 
         <Accordion title="Posso ter documentos do prédio e da fração?">
           <Text style={styles.faqText}>
             Sim. No modo “Prédio”, os documentos das
-            <Text style={styles.noteStrong}>partes comuns</Text> ficam no prédio
-            e os documentos da <Text style={styles.noteStrong}>fração</Text>
+            <Text style={styles.noteStrong}> partes comuns</Text> ficam no
+            prédio e os documentos da{" "}
+            <Text style={styles.noteStrong}> fração </Text>
             ficam dentro da fração.
           </Text>
         </Accordion>
