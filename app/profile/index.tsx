@@ -24,6 +24,8 @@ import { initialsFromName } from "@/utils/user";
 import type { SubscriptionPlanDto } from "@/types/models";
 import { updateProfile } from "@/hooks/services/user";
 
+import { openBillingPortal } from "@/hooks/services/payment";
+
 async function getPlans(): Promise<SubscriptionPlanDto[]> {
   const res = await api.get("/subscriptions/plans");
   return res.data;
@@ -140,6 +142,15 @@ export default function ProfileScreen() {
         message: "Erro ao atualizar perfil.",
       });
     }
+  };
+  const handleOpenBilling = async () => {
+    if (!user?.email) return;
+    const url = await openBillingPortal(user.email);
+    // Open in WebView or use Linking.openURL(url) for external browser
+    router.push({
+      pathname: "/payments/billing-manage",
+      params: { billingPortalUrl: url },
+    });
   };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
@@ -335,7 +346,7 @@ export default function ProfileScreen() {
         selectedPlanCode={selectedPlanCode}
         onSelectPlan={setSelectedPlanCode}
         onConfirm={handleConfirmPlanChange}
-        onOpenBilling={() => router.push("/payments/payment")}
+        onOpenBilling={handleOpenBilling}
       />
     </SafeAreaView>
   );
