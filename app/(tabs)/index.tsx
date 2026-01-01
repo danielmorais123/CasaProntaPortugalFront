@@ -95,26 +95,45 @@ function PropertyMiniCard({
   const alertsCount = p.alerts?.length ?? 0;
   const docsCount = p.documents?.length ?? 0;
 
+  const hasAlerts = alertsCount > 0;
+
   return (
-    <Pressable onPress={onPress} style={styles.propertyCard}>
+    <Pressable onPress={onPress} style={styles.propertyRow}>
+      {/* Left accent */}
+      <View
+        style={[
+          styles.statusDot,
+          hasAlerts ? styles.statusDotAlert : styles.statusDotOk,
+        ]}
+      />
+
       <View style={{ flex: 1 }}>
         <Text style={styles.propertyName} numberOfLines={1}>
           {p.name}
         </Text>
+
         <Text style={styles.propertyMeta} numberOfLines={1}>
           {propertyTypeLabel(p.type)}
           {p.streetName ? ` • ${p.streetName}` : ""}
-          {` • ${docsCount} docs`}
         </Text>
+
+        <View style={styles.propertyFooter}>
+          <Text style={styles.footerText}>{docsCount} documentos</Text>
+
+          <Text
+            style={[
+              styles.footerStatus,
+              hasAlerts ? styles.footerStatusAlert : styles.footerStatusOk,
+            ]}
+          >
+            {hasAlerts
+              ? `${alertsCount} alerta${alertsCount === 1 ? "" : "s"}`
+              : "Sem alertas"}
+          </Text>
+        </View>
       </View>
 
-      <View style={alertsCount > 0 ? styles.badge : styles.badgeMuted}>
-        <Text
-          style={alertsCount > 0 ? styles.badgeText : styles.badgeTextMuted}
-        >
-          {alertsCount}
-        </Text>
-      </View>
+      <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
     </Pressable>
   );
 }
@@ -440,6 +459,68 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     backgroundColor: "#fff",
+  },
+  propertyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  statusDot: {
+    width: 6,
+    height: 36,
+    borderRadius: 999,
+  },
+  statusDotOk: {
+    backgroundColor: "#22C55E",
+  },
+  statusDotAlert: {
+    backgroundColor: "#EF4444",
+  },
+
+  propertyName: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+
+  propertyMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+
+  propertyFooter: {
+    marginTop: 6,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+
+  footerText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#475569",
+  },
+
+  footerStatus: {
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  footerStatusOk: {
+    color: "#16A34A",
+  },
+
+  footerStatusAlert: {
+    color: "#DC2626",
   },
 
   emptyBox: {

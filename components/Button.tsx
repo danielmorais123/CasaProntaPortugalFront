@@ -162,11 +162,11 @@ const variantStyles: Record<
   // ⭐ NEW: Gold button for "Ver Planos"
   gold: {
     container: {
-      backgroundColor: "#F59E0B", // amber-500
+      backgroundColor: "#B8860B", // amber-500
       borderWidth: 1,
       borderColor: "#D97706", // amber-600
     },
-    text: { color: "#0F172A" }, // dark text reads better on gold
+    text: { color: "#111", fontWeight: "900" }, // dark text reads better on gold
     textDisabled: { color: "#334155" },
   },
 };

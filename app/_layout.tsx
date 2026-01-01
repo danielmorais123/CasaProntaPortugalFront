@@ -27,6 +27,8 @@ function RootNavigation() {
       const isAuthRoute = segments[0] === "(auth)";
       if (!user && !isAuthRoute) {
         router.replace("/(auth)/login");
+      } else if (user && isAuthRoute) {
+        router.replace("/");
       }
     }
   }, [segments, user, loading, layoutReady, router]);

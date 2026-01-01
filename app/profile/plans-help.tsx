@@ -412,11 +412,16 @@ export default function PlansHelpScreen() {
 
                 <View style={{ marginTop: 12 }}>
                   <Text style={styles.cardInfoLabel}>Inclui</Text>
-                  <View style={styles.bullets}>
+                  <View style={styles.featureList}>
                     {p.features.slice(0, 8).map((f, idx) => (
-                      <Text key={idx} style={styles.bullet}>
-                        • {f}
-                      </Text>
+                      <View key={idx} style={styles.featureRow}>
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={16}
+                          color="#16A34A"
+                        />
+                        <Text style={styles.featureText}>{f}</Text>
+                      </View>
                     ))}
                   </View>
 
@@ -425,11 +430,16 @@ export default function PlansHelpScreen() {
                       <Text style={[styles.cardInfoLabel, { marginTop: 10 }]}>
                         Não inclui
                       </Text>
-                      <View style={styles.bullets}>
+                      <View style={styles.featureList}>
                         {p.excludedFeatures.slice(0, 6).map((f, idx) => (
-                          <Text key={idx} style={styles.bulletMuted}>
-                            • {f}
-                          </Text>
+                          <View key={idx} style={styles.featureRowMuted}>
+                            <Ionicons
+                              name="close-circle"
+                              size={16}
+                              color="#94A3B8"
+                            />
+                            <Text style={styles.featureTextMuted}>{f}</Text>
+                          </View>
                         ))}
                       </View>
                     </>
@@ -715,20 +725,41 @@ const styles = StyleSheet.create({
   cardInfoLabel: { fontSize: 12, fontWeight: "900", color: "#0F172A" },
   cardInfo: { marginTop: 4, fontSize: 13, color: "#475569", lineHeight: 18 },
 
-  bullets: { marginTop: 6 },
-  bullet: {
+  featureList: {
+    marginTop: 8,
+    gap: 6,
+  },
+
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 2,
+  },
+
+  featureRowMuted: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 2,
+    opacity: 0.75,
+  },
+
+  featureText: {
+    flex: 1,
     fontSize: 13,
     color: "#475569",
     lineHeight: 18,
-    marginBottom: 4,
     fontWeight: "600",
   },
-  bulletMuted: {
+
+  featureTextMuted: {
+    flex: 1,
     fontSize: 13,
     color: "#94A3B8",
     lineHeight: 18,
-    marginBottom: 4,
     fontWeight: "600",
+    textDecorationLine: "line-through",
   },
 
   cta: {

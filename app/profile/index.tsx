@@ -480,6 +480,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748B",
   },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
   badgeRow: {
     marginTop: 10,
     flexDirection: "row",

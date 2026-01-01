@@ -13,11 +13,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { api } from "@/hooks/services/api";
 import { Property, PropertyType } from "@/types/models";
 import { useError } from "@/context/ErrorContext"; // <-- import
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { propertyTypeFromString } from "@/utils/property";
 
 const allowedTypesByPlan: Record<string, PropertyType[]> = {
   free: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
@@ -209,72 +210,6 @@ function TypePill({
   );
 }
 
-// function DocChecklistRow({
-//   title,
-//   done,
-//   onUpload,
-// }: {
-//   title: string;
-//   done: boolean;
-//   onUpload: () => void;
-// }) {
-//   return (
-//     <View style={styles.checkRow}>
-//       <View
-//         style={[
-//           styles.checkDot,
-//           done ? styles.checkDotDone : styles.checkDotTodo,
-//         ]}
-//       >
-//         <Ionicons
-//           name={done ? "checkmark" : "add"}
-//           size={14}
-//           color={done ? "#fff" : "#111"}
-//         />
-//       </View>
-
-//       <Text style={styles.checkTitle} numberOfLines={1}>
-//         {title}
-//       </Text>
-
-//       {done ? (
-//         <View style={styles.donePill}>
-//           <Text style={styles.donePillText}>OK</Text>
-//         </View>
-//       ) : (
-//         <Pressable onPress={onUpload} style={styles.uploadMiniBtn}>
-//           <Text style={styles.uploadMiniBtnText}>Upload</Text>
-//         </Pressable>
-//       )}
-//     </View>
-//   );
-// }
-
-// function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
-//   return (
-//     <Pressable onPress={onPress} style={styles.row}>
-//       <View style={styles.rowIcon}>
-//         <Ionicons name="document-text-outline" size={18} />
-//       </View>
-
-//       <View style={{ flex: 1 }}>
-//         <Text style={styles.rowTitle} numberOfLines={1}>
-//           {docTypeLabel(d.type)}
-//         </Text>
-//         <Text style={styles.rowSubtitle} numberOfLines={1}>
-//           {d.expirationDate
-//             ? `Validade: ${new Date(d.expirationDate).toLocaleDateString(
-//                 "pt-PT"
-//               )}`
-//             : "Sem validade"}
-//         </Text>
-//       </View>
-
-//       <Text style={styles.rowChevron}>›</Text>
-//     </Pressable>
-//   );
-// }
-
 /* -------------------------------- Screen -------------------------------- */
 
 export default function AddPropertyScreen() {
@@ -282,10 +217,14 @@ export default function AddPropertyScreen() {
   const { setError } = useError();
   const { user } = useContext(AuthContext);
   const queryClient = useQueryClient(); // <--- adiciona isto
+  const searchParams = useLocalSearchParams();
 
   const [name, setName] = useState("");
   const [streetName, setStreetName] = useState("");
-  const [type, setType] = useState<PropertyType>(PropertyType.Apartment);
+  const [type, setType] = useState<PropertyType>(
+    propertyTypeFromString(searchParams.type as string) ??
+      PropertyType.Apartment
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [, setMessage] = useState<{

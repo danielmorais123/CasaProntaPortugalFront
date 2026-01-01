@@ -12,12 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  Property,
-  Document,
-  Alert as AlertModel,
-  PermissionLevel,
-} from "@/types/models";
+import { Document, Alert as AlertModel, PermissionLevel } from "@/types/models";
 import { getPropertyById } from "@/hooks/services/property";
 import { AuthContext } from "@/context/AuthContext";
 import { canEditProperty, canShareProperty } from "@/utils/permissions";
@@ -186,35 +181,6 @@ function SectionHeader({
   );
 }
 
-// function InventoryRow({
-//   name,
-//   mediaCount,
-//   onPress,
-// }: {
-//   name: string;
-//   mediaCount: number;
-//   onPress: () => void;
-// }) {
-//   return (
-//     <Pressable onPress={onPress} style={styles.row}>
-//       <View style={styles.rowIcon}>
-//         <Ionicons name="cube-outline" size={18} />
-//       </View>
-
-//       <View style={{ flex: 1 }}>
-//         <Text style={styles.rowTitle} numberOfLines={1}>
-//           {name}
-//         </Text>
-//         <Text style={styles.rowSubtitle} numberOfLines={1}>
-//           {mediaCount} ficheiros
-//         </Text>
-//       </View>
-
-//       <Text style={styles.rowChevron}>›</Text>
-//     </Pressable>
-//   );
-// }
-
 function permissionLabel(level: PermissionLevel) {
   switch (level) {
     case "Admin":
@@ -232,6 +198,7 @@ export default function PropertyDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const id = String(params.id ?? "");
+
   const { user } = useContext(AuthContext);
   const [shareOpen, setShareOpen] = useState(false);
 

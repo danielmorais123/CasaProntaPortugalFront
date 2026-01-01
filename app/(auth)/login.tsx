@@ -88,7 +88,7 @@ export default function LoginScreen() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.screen}>
         <TouchableOpacity onPress={() => router.push("/")}>
-          <Text>Home</Text>
+          <Text>HOME</Text>
         </TouchableOpacity>
         {/* Top brand */}
         <View style={styles.brand}>
