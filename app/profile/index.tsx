@@ -1,5 +1,5 @@
 // ProfileScreen.tsx
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   Pressable,
   Platform,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,8 +22,6 @@ import { formatPrice, planCodeToId } from "@/utils/plan";
 import { initialsFromName } from "@/utils/user";
 import type { SubscriptionPlanDto } from "@/types/models";
 import { updateProfile } from "@/hooks/services/user";
-
-import { openBillingPortal } from "@/hooks/services/payment";
 
 async function getPlans(): Promise<SubscriptionPlanDto[]> {
   const res = await api.get("/subscriptions/plans");
@@ -48,12 +45,7 @@ export default function ProfileScreen() {
   } | null>(null);
 
   // plans via React Query
-  const {
-    data: plans = [],
-    isLoading: plansLoading,
-    error: plansErrorObj,
-    refetch: refetchPlans,
-  } = useQuery({
+  const { data: plans = [], error: plansErrorObj } = useQuery({
     queryKey: ["plans"],
     queryFn: getPlans,
     staleTime: 1000 * 60 * 10, // 10 min cache
@@ -63,9 +55,6 @@ export default function ProfileScreen() {
     ? "Não foi possível carregar os planos."
     : null;
 
-  // sheet
-  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
-  const [selectedPlanCode, setSelectedPlanCode] = useState<string>("");
   const queryClient = useQueryClient();
   const currentPlanCode = useMemo(() => {
     const normalized = (planName ?? "").trim().toLowerCase();
@@ -111,21 +100,12 @@ export default function ProfileScreen() {
 
   const openManage = async () => {
     // garante planos antes de abrir
-    if (!plans.length && !plansLoading) await refetchPlans();
+    // if (!plans.length && !plansLoading) await refetchPlans();
 
-    const initial = currentPlanCode || plans?.[0]?.code || "free";
-    setSelectedPlanCode(initial);
-    setSubscriptionOpen(true);
-  };
-
-  const closeManage = () => setSubscriptionOpen(false);
-
-  const handleConfirmPlanChange = () => {
-    setSubscriptionOpen(false);
-    router.push({
-      pathname: "/payments/payment",
-      params: { planCode: selectedPlanCode },
-    });
+    // const initial = currentPlanCode || plans?.[0]?.code || "free";
+    // setSelectedPlanCode(initial);
+    // setSubscriptionOpen(true);
+    router.push("/profile/plans-help");
   };
 
   const handleSave = async () => {
@@ -143,15 +123,7 @@ export default function ProfileScreen() {
       });
     }
   };
-  const handleOpenBilling = async () => {
-    if (!user?.email) return;
-    const url = await openBillingPortal(user.email);
-    // Open in WebView or use Linking.openURL(url) for external browser
-    router.push({
-      pathname: "/payments/billing-manage",
-      params: { billingPortalUrl: url },
-    });
-  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -231,8 +203,12 @@ export default function ProfileScreen() {
             <LimitChip
               icon="sparkles-outline"
               label="IA"
-              value={currentPlanFromApi?.limits?.aiOnUpload ? "Ativa" : "—"}
-              accent={currentPlanFromApi?.limits?.aiOnUpload}
+              value={
+                currentPlanFromApi?.limits?.aiOnUpload ? "Ativa" : "Inativa"
+              }
+              variant={
+                currentPlanFromApi?.limits?.aiOnUpload ? "success" : "inactive"
+              }
             />
           </View>
 
@@ -313,7 +289,7 @@ export default function ProfileScreen() {
             icon="add-circle-outline"
             title="Adicionar imóvel"
             subtitle="Cria um novo imóvel e começa a organizar"
-            onPress={() => router.push("/properties/create")}
+            onPress={() => router.push("/property/add-property")}
           />
           <ActionRow
             icon="cloud-upload-outline"
@@ -335,19 +311,6 @@ export default function ProfileScreen() {
           onPress={() => router.push("/")}
         />
       </ScrollView>
-
-      {/* No-Modal overlay sheet (stable) */}
-      <SubscriptionOverlaySheet
-        open={subscriptionOpen}
-        onClose={closeManage}
-        plans={plans}
-        loading={plansLoading}
-        currentPlanCode={currentPlanCode}
-        selectedPlanCode={selectedPlanCode}
-        onSelectPlan={setSelectedPlanCode}
-        onConfirm={handleConfirmPlanChange}
-        onOpenBilling={handleOpenBilling}
-      />
     </SafeAreaView>
   );
 }
@@ -359,20 +322,69 @@ function LimitChip({
   label,
   value,
   accent,
+  variant = "default",
 }: {
   icon: any;
   label: string;
   value: string;
   accent?: boolean;
+  variant?: "default" | "success" | "inactive";
 }) {
+  const isInactive = variant === "inactive";
+  const isSuccess = variant === "success" || accent;
+
+  const iconColor = isSuccess ? "#047857" : isInactive ? "#94A3B8" : "#2563EB";
+
   return (
-    <View style={[styles.chip, accent && styles.chipAccent]}>
-      <Ionicons name={icon} size={16} color={accent ? "#047857" : "#2563EB"} />
+    <View
+      style={[
+        styles.chip,
+        isSuccess && styles.chipAccent,
+        isInactive && styles.chipInactive,
+      ]}
+    >
+      <View
+        style={[styles.chipIconWrap, isInactive && styles.chipIconWrapInactive]}
+      >
+        <Ionicons name={icon} size={16} color={iconColor} />
+      </View>
+
       <View style={{ flex: 1 }}>
-        <Text style={styles.chipLabel}>{label}</Text>
-        <Text style={[styles.chipValue, accent && { color: "#047857" }]}>
-          {value}
+        <Text
+          style={[styles.chipLabel, isInactive && styles.chipLabelInactive]}
+        >
+          {label}
         </Text>
+
+        <View style={styles.chipValueRow}>
+          <Text
+            style={[
+              styles.chipValue,
+              isSuccess && { color: "#047857" },
+              isInactive && styles.chipValueInactive,
+            ]}
+          >
+            {value}
+          </Text>
+
+          {/* Small status pill */}
+          {isSuccess ? (
+            <View style={styles.statusPillOn}>
+              <Text style={styles.statusPillOnText}>ATIVA</Text>
+            </View>
+          ) : isInactive ? (
+            <View style={styles.statusPillOff}>
+              <Text style={styles.statusPillOffText}>NÃO INCLUÍDA</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {/* Optional helper text for inactive */}
+        {isInactive ? (
+          <Text style={styles.chipHint}>
+            Disponível nos planos PRO ou acima.
+          </Text>
+        ) : null}
       </View>
     </View>
   );
@@ -416,192 +428,6 @@ function ActionRow({
       </View>
       <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
     </Pressable>
-  );
-}
-
-/* ---------------------- Subscription Overlay Sheet ---------------------- */
-
-function SubscriptionOverlaySheet({
-  open,
-  onClose,
-  plans,
-  loading,
-  currentPlanCode,
-  selectedPlanCode,
-  onSelectPlan,
-  onConfirm,
-  onOpenBilling,
-}: {
-  open: boolean;
-  onClose: () => void;
-  plans: SubscriptionPlanDto[];
-  loading: boolean;
-  currentPlanCode: string;
-  selectedPlanCode: string;
-  onSelectPlan: (code: string) => void;
-  onConfirm: () => void;
-  onOpenBilling: () => void;
-}) {
-  const currentNormalized = planCodeToId(currentPlanCode);
-  const selectedNormalized = planCodeToId(selectedPlanCode);
-  const selectedIsCurrent =
-    selectedNormalized && selectedNormalized === currentNormalized;
-
-  const showLoading = loading || plans.length === 0;
-
-  if (!open) return null;
-
-  return (
-    <View style={sheet.root}>
-      {/* Backdrop */}
-      <Pressable style={sheet.backdrop} onPress={onClose} />
-
-      {/* Sheet */}
-      <View style={sheet.sheet}>
-        <View style={sheet.grabber} />
-
-        <View style={sheet.header}>
-          <Text style={sheet.title}>Gerir subscrição</Text>
-          <Pressable onPress={onClose} style={sheet.closeBtn}>
-            <Text style={sheet.closeBtnText}>✕</Text>
-          </Pressable>
-        </View>
-
-        <Text style={sheet.subtitle}>
-          Escolhe um plano e continua para o pagamento.
-        </Text>
-
-        {showLoading ? (
-          <View style={sheet.loadingBox}>
-            <ActivityIndicator />
-            <Text style={sheet.loadingText}>A carregar planos…</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={{ maxHeight: 380 }}
-            contentContainerStyle={{ paddingBottom: 10, gap: 10 }}
-            showsVerticalScrollIndicator={false}
-          >
-            {plans.map((p) => {
-              const isSelected = planCodeToId(p.code) === selectedNormalized;
-              const isCurrent = planCodeToId(p.code) === currentNormalized;
-
-              return (
-                <Pressable
-                  key={p.code}
-                  onPress={() => onSelectPlan(p.code)}
-                  style={[sheet.planCard, isSelected && sheet.planCardSelected]}
-                >
-                  <View style={sheet.planTop}>
-                    <View style={{ flex: 1 }}>
-                      <View style={sheet.planNameRow}>
-                        <Text style={sheet.planName}>{p.name}</Text>
-
-                        {p.isPopular ? (
-                          <View style={sheet.badge}>
-                            <Text style={sheet.badgeText}>Mais popular</Text>
-                          </View>
-                        ) : null}
-
-                        {isCurrent ? (
-                          <View style={sheet.currentPill}>
-                            <Text style={sheet.currentPillText}>Atual</Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <Text style={sheet.planPrice}>{formatPrice(p)}</Text>
-
-                      {p.description ? (
-                        <Text style={sheet.planDesc}>{p.description}</Text>
-                      ) : null}
-
-                      <View style={sheet.metaRow}>
-                        <Text style={sheet.metaText}>
-                          Imóveis:{" "}
-                          <Text style={sheet.metaStrong}>
-                            {p.limits?.maxProperties == null
-                              ? "∞"
-                              : p.limits.maxProperties}
-                          </Text>
-                        </Text>
-
-                        <Text style={sheet.metaDot}>•</Text>
-                        <Text style={sheet.metaText}>
-                          Docs:{" "}
-                          <Text style={sheet.metaStrong}>
-                            {p.limits?.maxDocuments == null
-                              ? "∞"
-                              : p.limits.maxDocuments}
-                          </Text>
-                        </Text>
-
-                        {p.limits?.aiOnUpload ? (
-                          <>
-                            <Text style={sheet.metaDot}>•</Text>
-                            <Text style={sheet.metaAi}>IA</Text>
-                          </>
-                        ) : null}
-                      </View>
-                    </View>
-
-                    <View
-                      style={[
-                        sheet.radioOuter,
-                        isSelected && sheet.radioOuterSelected,
-                      ]}
-                    >
-                      {isSelected ? <View style={sheet.radioInner} /> : null}
-                    </View>
-                  </View>
-
-                  <View style={{ height: 10 }} />
-
-                  <View style={sheet.featureBlock}>
-                    {p.features?.slice(0, 4).map((f) => (
-                      <Text key={f} style={sheet.feature}>
-                        ✓ {f}
-                      </Text>
-                    ))}
-                    {p.excludedFeatures?.slice(0, 2).map((f) => (
-                      <Text key={f} style={sheet.excluded}>
-                        - {f}
-                      </Text>
-                    ))}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        <View style={sheet.actions}>
-          <Pressable onPress={onOpenBilling} style={sheet.linkBtn}>
-            <Text style={sheet.linkBtnText}>Gerir faturação</Text>
-          </Pressable>
-
-          <View style={{ height: 10 }} />
-
-          <Pressable
-            onPress={onConfirm}
-            disabled={showLoading || !selectedPlanCode || selectedIsCurrent}
-            style={[
-              sheet.primaryBtn,
-              (showLoading || !selectedPlanCode || selectedIsCurrent) &&
-                sheet.primaryBtnDisabled,
-            ]}
-          >
-            <Text style={sheet.primaryBtnText}>
-              {selectedIsCurrent ? "Já estás neste plano" : "Continuar"}
-            </Text>
-          </Pressable>
-
-          <Text style={sheet.footnote}>
-            Ao continuar, vais para o ecrã de pagamento com o plano selecionado.
-          </Text>
-        </View>
-      </View>
-    </View>
   );
 }
 
@@ -749,9 +575,12 @@ const styles = StyleSheet.create({
   limitsRow: {
     flexDirection: "row",
     gap: 10,
+    flexWrap: "wrap", // optional if you want it to wrap on small screens
   },
+
   chip: {
     flex: 1,
+    minWidth: 160, // helps wrapping look good
     flexDirection: "row",
     gap: 10,
     alignItems: "center",
@@ -761,20 +590,99 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
+
   chipAccent: {
     backgroundColor: "#ECFDF5",
     borderColor: "#A7F3D0",
   },
+
+  // NEW: inactive variant
+  chipInactive: {
+    backgroundColor: "#F1F5F9",
+    borderColor: "#E2E8F0",
+    opacity: 0.95,
+  },
+
+  chipIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  chipIconWrapInactive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E2E8F0",
+  },
+
   chipLabel: {
     fontSize: 12,
     color: "#64748B",
     fontWeight: "700",
   },
-  chipValue: {
+
+  chipLabelInactive: {
+    color: "#94A3B8",
+  },
+
+  chipValueRow: {
     marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+
+  chipValue: {
     fontSize: 13,
     color: "#0F172A",
     fontWeight: "900",
+  },
+
+  chipValueInactive: {
+    color: "#475569",
+  },
+
+  statusPillOn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "#D1FAE5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+  },
+
+  statusPillOnText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#047857",
+  },
+
+  statusPillOff: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "#E2E8F0",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+
+  statusPillOffText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#475569",
+  },
+
+  chipHint: {
+    marginTop: 6,
+    fontSize: 11,
+    color: "#64748B",
+    fontWeight: "700",
+    lineHeight: 14,
   },
 
   sectionLabel: {

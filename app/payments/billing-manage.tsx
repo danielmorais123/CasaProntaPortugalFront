@@ -21,6 +21,10 @@ export default function BillingManageScreen() {
           queryClient.invalidateQueries({ queryKey: ["user"] });
           router.replace("/profile");
         }
+        if (navState.url.includes("/payment")) {
+          queryClient.invalidateQueries({ queryKey: ["user"] });
+          router.replace("/payments/payment-error");
+        }
       }}
     />
   );

@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
-import { Text } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { api } from "@/hooks/services/api";
 import { AuthContext } from "@/context/AuthContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { Button } from "@/components/Button";
 
 export default function PaymentScreen() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
@@ -38,26 +41,34 @@ export default function PaymentScreen() {
   const handleNavigationStateChange = (navState: any) => {
     if (handled.current) return;
     if (
-      navState.url.startsWith("http://192.168.8.100:8081/property") // success URL
+      navState.url.includes("property") // success URL
     ) {
       handled.current = true;
       queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
       router.replace("/profile");
     }
     if (
-      navState.url.startsWith("http://192.168.8.100:8081/") // cancel URL
+      navState.url.startsWith("payment") // cancel URL
     ) {
       handled.current = true;
-      router.back();
+      queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      router.push("/payments/payment-error");
     }
   };
 
   if (!checkoutUrl) return <Text>Loading...</Text>;
 
   return (
-    <WebView
-      source={{ uri: checkoutUrl }}
-      onNavigationStateChange={handleNavigationStateChange}
-    />
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      <Button
+        onPress={() => router.back()}
+        title="Voltar para a app"
+        variant="default"
+      />
+      <WebView
+        source={{ uri: checkoutUrl }}
+        onNavigationStateChange={handleNavigationStateChange}
+      />
+    </SafeAreaView>
   );
 }

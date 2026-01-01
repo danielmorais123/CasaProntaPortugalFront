@@ -22,19 +22,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 const allowedTypesByPlan: Record<string, PropertyType[]> = {
   free: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
   starter: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
-  pro: [
-    PropertyType.House,
-    PropertyType.Apartment,
-    PropertyType.Land,
-    PropertyType.Building,
-  ],
-  business: [
-    PropertyType.House,
-    PropertyType.Apartment,
-    PropertyType.Land,
-    PropertyType.Building,
-    PropertyType.Unit,
-  ],
+  pro: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
+  business: [PropertyType.House, PropertyType.Apartment, PropertyType.Land],
   portfolio: [
     PropertyType.House,
     PropertyType.Apartment,

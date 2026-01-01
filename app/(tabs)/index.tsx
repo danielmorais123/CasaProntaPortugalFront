@@ -335,14 +335,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* (Opcional) dev shortcut */}
-        <Pressable
-          onPress={() => router.push("/payments/payment")}
-          style={styles.devLink}
-        >
-          <Text style={styles.devLinkText}>Payment</Text>
-        </Pressable>
-
         <View style={{ height: 18 }} />
       </ScrollView>
     </SafeAreaView>

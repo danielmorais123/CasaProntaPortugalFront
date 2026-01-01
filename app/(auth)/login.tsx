@@ -66,6 +66,7 @@ export default function LoginScreen() {
       if (!email || !password) {
         throw new Error("Por favor, preencha todos os campos.");
       }
+      console.log("EMAIL DASNDASJND");
       const ok = await login(email, password);
       if (!ok) throw new Error("Email ou password incorretos.");
       return ok;

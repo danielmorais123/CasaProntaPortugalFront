@@ -22,3 +22,10 @@ export const updateUserSubscription = async (planCode: string) => {
   const res = await api.post("/subscriptions/update", { planCode });
   return res.data;
 };
+
+export const canUpdateToPlan = async (
+  planCode: string
+): Promise<{ canUpdate: boolean; errors?: string[] }> => {
+  const res = await api.post("/subscriptions/can-update", { planCode });
+  return res.data;
+};

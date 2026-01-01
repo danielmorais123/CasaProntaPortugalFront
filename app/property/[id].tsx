@@ -274,7 +274,6 @@ export default function PropertyDetailScreen() {
       </SafeAreaView>
     );
   }
-  console.log({ error, item });
   if (error || !item) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -294,7 +293,7 @@ export default function PropertyDetailScreen() {
 
   function onUpgrade(): void {
     // Redirect user to the upgrade or subscription page
-    router.push("/upgrade");
+    router.push("/profile/plans-help");
   }
 
   return (
@@ -478,7 +477,12 @@ export default function PropertyDetailScreen() {
         <SectionHeader
           title="Partilhas"
           actionText={showManage ? "Partilhar este imóvel" : undefined}
-          onAction={() => setShareOpen(true)}
+          onAction={() =>
+            router.push({
+              pathname: "/property/[id]/share",
+              params: { id: item.id },
+            })
+          }
           disabled={showManage ? shareDisabled : undefined}
           secondaryText={showManage && shareDisabled ? "Upgrade" : undefined}
           onSecondaryAction={
@@ -498,7 +502,12 @@ export default function PropertyDetailScreen() {
                 showManage && shareDisabled ? styles.disabledCta : null,
               ]}
               disabled={!showManage || shareDisabled}
-              onPress={() => setShareOpen(true)}
+              onPress={() =>
+                router.push({
+                  pathname: "/property/[id]/share",
+                  params: { id: item.id },
+                })
+              }
             >
               <Text style={styles.secondaryCtaText}>
                 {showManage ? "Partilhar este imóvel" : "Sem permissão"}

@@ -6,3 +6,15 @@ export const openBillingPortal = async (userEmail: string) => {
   });
   return res.data.url;
 };
+
+export const createCheckoutOrPortalSession = async (
+  userEmail: string,
+  planCode?: string
+): Promise<{ url: string; portal: boolean }> => {
+  const res = await api.post(
+    "/payments/create-checkout-session",
+    { userEmail, planCode },
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return res.data;
+};

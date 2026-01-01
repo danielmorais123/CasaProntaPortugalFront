@@ -1,10 +1,11 @@
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
 import { useState, useEffect, useContext } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { AuthContext, AuthProvider } from "../context/AuthContext";
 import { ErrorProvider, useError } from "@/context/ErrorContext";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 const queryClient = new QueryClient();
