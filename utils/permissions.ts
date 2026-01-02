@@ -64,7 +64,7 @@ export function canShareProperty(
   if (!user || !property) return false;
 
   // If plan exists and MaxGuests is undefined/null, allow unlimited guests
-  const maxGuests = user.plan?.limits?.MaxGuests;
+  const maxGuests = user.plan?.limits?.maxGuests;
   if (user.plan && (maxGuests === undefined || maxGuests === null)) {
     return true;
   }

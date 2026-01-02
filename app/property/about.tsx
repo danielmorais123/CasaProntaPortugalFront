@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { RelativePathString, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { AuthContext } from "@/context/AuthContext";
 import { getPlans } from "@/hooks/services/subscription";
@@ -274,7 +274,7 @@ export default function CreatePropertyHelpScreen() {
       return;
     }
 
-    router.push(card.route);
+    router.push(card.route as RelativePathString);
   }
 
   function goToPlans() {

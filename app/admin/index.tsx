@@ -14,13 +14,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/hooks/services/api";
 import {
   getPlans,
   updateUserSubscription,
 } from "@/hooks/services/subscription";
 import { SelectInput } from "@/components/SelectInput";
-import type { SubscriptionPlanDto } from "@/types/models";
+import { getPagedUsers } from "@/hooks/services/user";
+import { getPagedProperties } from "@/hooks/services/property";
 
 type TabKey = "users" | "properties";
 
@@ -195,19 +195,14 @@ export default function AdminScreen() {
     refetch: refetchUsers,
   } = useQuery({
     queryKey: ["admin-users", userPage, userQuery, userEmail, userPlan],
-    queryFn: async () => {
-      const res = await api.get("/user/paged", {
-        params: {
-          page: userPage,
-          pageSize: 20,
-          query: userQuery || undefined,
-          email: userEmail || undefined,
-          plan: userPlan || undefined,
-        },
-      });
-      return res.data;
-    },
-    keepPreviousData: true,
+    queryFn: async () =>
+      await getPagedUsers({
+        page: userPage,
+        pageSize: 20,
+        query: userQuery || undefined,
+        email: userEmail || undefined,
+        plan: userPlan || undefined,
+      }),
   });
 
   // Properties
@@ -217,17 +212,12 @@ export default function AdminScreen() {
     refetch: refetchProperties,
   } = useQuery({
     queryKey: ["admin-properties", propertyPage, propertyQuery],
-    queryFn: async () => {
-      const res = await api.get("/property/paged", {
-        params: {
-          page: propertyPage,
-          pageSize: 20,
-          query: propertyQuery || undefined,
-        },
-      });
-      return res.data;
-    },
-    keepPreviousData: true,
+    queryFn: async () =>
+      await getPagedProperties({
+        page: propertyPage,
+        pageSize: 20,
+        query: propertyQuery || undefined,
+      }),
   });
 
   const users = usersData?.items ?? [];
@@ -439,7 +429,8 @@ export default function AdminScreen() {
                       title={u.name || u.email || "Utilizador"}
                       subtitle={u.email || u.id}
                       badge={
-                        (u.planName || u.plan || "").toUpperCase() || undefined
+                        (u.planName || u?.plan?.name || "").toUpperCase() ||
+                        undefined
                       }
                       onPress={() => {}}
                     />

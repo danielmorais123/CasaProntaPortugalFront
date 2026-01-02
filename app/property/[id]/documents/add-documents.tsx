@@ -23,7 +23,7 @@ import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { AuthContext } from "@/context/AuthContext";
 import { propertyTypeFromString } from "@/utils/property";
-import { documentTypeToId } from "@/utils/document";
+import { documentTypeToId, documentTypeToString } from "@/utils/document";
 import { getMaxFileSizeForPlan } from "@/utils/plan";
 
 type DocumentScope = string;
@@ -124,14 +124,13 @@ export default function DocumentUploadSuggestionsScreen() {
     async (s: SuggestedDoc) => {
       if (!propertyId || !planInfo) return;
 
-      setUploadingType(s.type);
+      setUploadingType(documentTypeToString(s.type));
       setError(null);
 
       try {
         const file = await pickFile();
         if (!file) return;
-
-        if (file.size && file.size > planInfo.maxFileSize) {
+        if (file.size && file.size > planInfo.maxFileSize * (1024 * 1024)) {
           setError(
             `Este documento excede ${
               planInfo.maxFileSize / (1024 * 1024)
@@ -142,21 +141,30 @@ export default function DocumentUploadSuggestionsScreen() {
 
         if (planInfo.canUploadViaBackend) {
           const form = new FormData();
-          // Fetch the file as a blob
-          const fileBlob = await fetch(file.uri).then((res) => res.blob());
-          form.append("file", fileBlob, file.name);
 
           form.append("PropertyId", propertyId);
           form.append("Type", String(documentTypeToId(s.type)));
-          if (s.category) form.append("Category", s.category);
 
-          await api.post(`/api/document/upload`, form, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+          if (s.category) {
+            form.append("Category", s.category);
+          }
+
+          // 🔑 FICHEIRO — EXATAMENTE ASSIM
+          form.append("file", {
+            uri: file.uri,
+            name: file.name ?? "document.pdf",
+            type: file.mimeType ?? "application/pdf",
+          } as any);
+
+          const res = await api.post("/document/upload", form);
 
           router.back();
           return;
         }
+
+        console.log("UPLOAD VIA FRONT");
+        return;
+        console.log("UPLOAD VIA FRONT 2");
 
         const uploadReq = {
           propertyId,
@@ -193,6 +201,7 @@ export default function DocumentUploadSuggestionsScreen() {
 
         router.back();
       } catch (e: any) {
+        console.log({ e });
         setError(e?.message || "Falha ao fazer upload.");
       } finally {
         setUploadingType(null);
@@ -224,7 +233,7 @@ export default function DocumentUploadSuggestionsScreen() {
   }, [planInfo.maxFileSize, planInfo?.plan]);
 
   const renderItem = ({ item }: { item: SuggestedDoc }) => {
-    const isUploading = uploadingType === item.type;
+    const isUploading = uploadingType === documentTypeToString(item.type);
 
     return (
       <View style={styles.itemCard}>
@@ -315,7 +324,7 @@ export default function DocumentUploadSuggestionsScreen() {
 
       {error || queryError ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-          <Alert type="error" message={error || String(queryError)} />
+          <Alert variant="warning" title={error || String(queryError)} />
         </View>
       ) : null}
 

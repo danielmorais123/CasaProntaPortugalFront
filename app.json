@@ -1,19 +1,20 @@
 {
   "expo": {
     "name": "CasaProntaPortugalFront",
-    "slug": "CasaProntaPortugalFront",
+    "slug": "casa-pronta",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "casapronta",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.casapronta"
+      "bundleIdentifier": "com.yourcompany.casapronta",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -26,13 +27,11 @@
       "package": "com.yourcompany.casapronta",
       "useNextNotificationsApi": true
     },
-
     "web": {
       "output": "static",
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       "expo-router",
       "expo-notifications",
@@ -49,16 +48,15 @@
         }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
-
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "73253cba-1adf-4fcb-b24f-d44093cbb6a8"
       }
-    }
+    },
+    "owner": "moraisartic01"
   }
 }

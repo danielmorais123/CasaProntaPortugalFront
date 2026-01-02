@@ -135,6 +135,29 @@ export default function ProfileScreen() {
             title={alertMessage.message}
           />
         )}
+        <View style={styles.topBar}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.back()}
+            hitSlop={10}
+          >
+            <Ionicons name="arrow-back" size={18} color="#0F172A" />
+          </Pressable>
+
+          <Text style={styles.topTitle} numberOfLines={1}>
+            Perfil
+          </Text>
+
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push({ pathname: "/documents/edit", params: { id } })
+            }
+            hitSlop={10}
+          >
+            <Ionicons name="create-outline" size={18} color="#0F172A" />
+          </Pressable>
+        </View>
 
         {/* Header */}
         <View style={styles.headerCard}>
@@ -526,6 +549,20 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: 12,
   },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  topTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+
   iconBtn: {
     width: 40,
     height: 40,

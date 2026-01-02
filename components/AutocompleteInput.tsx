@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useDebouncedSearch } from "@/hooks/useDebouncedSearch";
 
-type Item = {
+export type Item = {
   id: string;
   label: string;
 };

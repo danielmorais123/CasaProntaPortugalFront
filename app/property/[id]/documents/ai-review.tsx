@@ -154,9 +154,10 @@ export default function AiReviewScreen() {
       const res = await api.get(`/documents/${docId}/ai-extraction`);
       return res.data;
     },
-    onSuccess: (d) => {
+    select: (d: ExtractionResponse) => {
       setLocalFields(d.fields ?? {});
       setDirty(false);
+      return d;
     },
     staleTime: 1000 * 60 * 2,
   });

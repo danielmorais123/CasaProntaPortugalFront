@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { Property } from "@/types/models";
+import { Property, PagedPropertiesResponse } from "@/types/models";
 
 // Get all properties (paged, accessible to the user)
 export const getAllProperties = async (page = 1, pageSize = 10) => {
@@ -38,5 +38,13 @@ export const updateProperty = async (
 // Delete a property
 export const deleteProperty = async (id: string) => {
   const response = await api.delete(`/property/${id}`);
+  return response.data;
+};
+export const getPagedProperties = async (params: {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+}): Promise<PagedPropertiesResponse> => {
+  const response = await api.get("/property/paged", { params });
   return response.data;
 };

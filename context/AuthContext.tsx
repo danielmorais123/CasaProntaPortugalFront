@@ -30,27 +30,22 @@ export const AuthContext = createContext<AuthContextProps>({
 });
 
 export const AuthProvider = ({ children }: any) => {
-  const [user, setUser] = React.useState<User | null>(null);
   const queryClient = useQueryClient();
-
   // Query para buscar o utilizador autenticado
-  const { data, isLoading, refetch } = useQuery({
+  const {
+    data: user,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["user"],
     queryFn: profileUserLoggedIn,
     retry: false,
     refetchOnWindowFocus: false,
-    onSuccess: (data) => setUser(data),
-    onError: () => setUser(null),
   });
-
-  React.useEffect(() => {
-    if (data) setUser(data);
-  }, [data]);
 
   const login = async (email: string, password: string) => {
     try {
       const res = await loginAPI(email, password);
-      setUser(res.user);
       // Atualiza o cache do user
       queryClient.setQueryData(["user"], res.user);
       return true;
@@ -79,7 +74,6 @@ export const AuthProvider = ({ children }: any) => {
     try {
       await api.post("/auth/logout", {}, { withCredentials: true });
     } catch {}
-    setUser(null);
     queryClient.removeQueries({ queryKey: ["user"] });
   };
 

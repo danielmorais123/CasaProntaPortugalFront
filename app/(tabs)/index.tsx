@@ -1,5 +1,5 @@
 // HomeScreen.tsx
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { Alert as AlertComponent } from "@/components/Alert";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
 import { useQuery } from "@tanstack/react-query";
+import { LoadErrorScreen } from "@/components/StateScreens";
 // import { IslandDock } from "@/components/IslandDock";
 
 // function mapPathToDock(path: string) {
@@ -193,6 +194,24 @@ export default function HomeScreen() {
   const alertsPreview = useMemo(() => alerts.slice(0, 3), [alerts]);
   const totalAlerts = alerts.length;
 
+  const retryCount = useRef(0);
+  const [retryDisabled, setRetryDisabled] = useState(false);
+
+  const onRetry = async () => {
+    if (retryDisabled) return;
+    try {
+      await Promise.all([refetchProperties(), refetchAlerts()]);
+      // If successful, reset retry count
+      retryCount.current = 0;
+      setRetryDisabled(false);
+    } catch {
+      retryCount.current += 1;
+      if (retryCount.current >= 3) {
+        setRetryDisabled(true);
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -202,18 +221,18 @@ export default function HomeScreen() {
       </SafeAreaView>
     );
   }
-
   if (propertiesError || alertsError) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <View style={styles.center}>
-          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
-          <Text style={styles.emptyTitle}>Erro ao carregar dados</Text>
-          <Text style={styles.emptyText}>Tenta novamente mais tarde.</Text>
-          <Pressable onPress={onRefresh} style={styles.primaryCta}>
-            <Text style={styles.primaryCtaText}>Tentar novamente</Text>
-          </Pressable>
-        </View>
+        <LoadErrorScreen
+          onRetry={onRetry}
+          title="Erro ao carregar dados"
+          subtitle={
+            retryDisabled
+              ? "Muitas tentativas falhadas. Tenta novamente mais tarde."
+              : "Não conseguimos obter os imóveis/alertas. Tenta novamente."
+          }
+        />
       </SafeAreaView>
     );
   }

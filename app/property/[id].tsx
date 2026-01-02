@@ -27,27 +27,6 @@ function Pill({ text }: { text: string }) {
   );
 }
 
-// function SectionHeader({
-//   title,
-//   actionText,
-//   onAction,
-// }: {
-//   title: string;
-//   actionText?: string;
-//   onAction?: () => void;
-// }) {
-//   return (
-//     <View style={styles.sectionHeader}>
-//       <Text style={styles.sectionTitle}>{title}</Text>
-//       {actionText && onAction ? (
-//         <Pressable onPress={onAction} hitSlop={10}>
-//           <Text style={styles.sectionAction}>{actionText}</Text>
-//         </Pressable>
-//       ) : null}
-//     </View>
-//   );
-// }
-
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.statTile}>
@@ -220,7 +199,9 @@ export default function PropertyDetailScreen() {
   const shareDisabled = !canShare;
   const showManage = canManagePermissions;
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const docs = item?.documents ?? [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const alerts = item?.alerts ?? [];
   const permissions = item?.permissions ?? [];
 
@@ -356,7 +337,7 @@ export default function PropertyDetailScreen() {
               style={styles.primaryCta}
               onPress={() =>
                 router.push({
-                  pathname: "/property/add-documents",
+                  pathname: "/property/[id]/documents/add-documents",
                   params: { propertyId: item.id, propertyType: item.type },
                 })
               }
@@ -372,8 +353,8 @@ export default function PropertyDetailScreen() {
                 d={d}
                 onPress={() =>
                   router.push({
-                    pathname: "/documents/[id]",
-                    params: { id: d.id },
+                    pathname: "/property/[id]/documents/[documentId]",
+                    params: { propertyId: item.id, documentId: d.id },
                   })
                 }
               />

@@ -78,33 +78,10 @@ export enum DocumentCategory {
   Other = 6,
 }
 
-export enum MediaFileType {
-  Photo = "Photo",
-  Video = "Video",
-}
-
 export enum PermissionLevel {
   Read = "Read",
   Admin = "Admin",
   Temporary = "Temporary",
-}
-
-export interface MediaFile {
-  id: string;
-  url: string;
-  type: MediaFileType;
-  inventoryItemId: string;
-  inventoryItem?: InventoryItem;
-}
-
-export interface InventoryItem {
-  id: string;
-  propertyId: string;
-  property?: Property;
-  name: string;
-  description: string;
-  mediaFiles: MediaFile[];
-  checklist: string[];
 }
 
 export interface Document {
@@ -156,7 +133,6 @@ export interface Property {
   documents: Document[];
   permissions: PropertyPermission[];
   alerts: Alert[];
-  inventory: InventoryItem[];
   parentPropertyId?: string;
   parentProperty?: Property;
   units?: Property[];
@@ -259,4 +235,16 @@ export type SubscriptionPlanDto = {
 export type UserSearchResult = {
   id: string;
   email: string;
+};
+export type PagedUsersResponse = {
+  items: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+export type PagedPropertiesResponse = {
+  items: Property[];
+  page: number;
+  pageSize: number;
+  total: number;
 };

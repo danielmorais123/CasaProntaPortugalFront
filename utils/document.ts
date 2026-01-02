@@ -1,4 +1,4 @@
-import { DocumentType } from "@/types/models";
+import { DocumentType, DocumentTypeName } from "@/types/models";
 
 /**
  * Converts a string (name or id) to a DocumentType enum value.
@@ -126,4 +126,12 @@ export function documentTypeFromString(str: string): DocumentType | undefined {
  */
 export function documentTypeToId(type: DocumentType): number {
   return type as number;
+}
+
+/**
+ * Converts a DocumentType enum value to its canonical string name.
+ * Returns "Documento" if not found.
+ */
+export function documentTypeToString(type: DocumentType): string {
+  return DocumentTypeName[type] || "Documento";
 }
