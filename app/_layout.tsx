@@ -1,4 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Notifications from "expo-notifications";
+import { registerForPushNotifications } from "@/hooks/services/pushNotifications";
 
 import { useState, useEffect, useContext } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
@@ -33,6 +35,24 @@ function RootNavigation() {
     }
   }, [segments, user, loading, layoutReady, router]);
 
+  useEffect(() => {
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const alertId = response.notification.request.content.data?.alertId;
+
+        if (alertId) {
+          router.push(`/alerts/${alertId}`);
+        }
+      });
+
+    return () => responseListener.remove();
+  }, [router]);
+
+  useEffect(() => {
+    if (user) {
+      registerForPushNotifications();
+    }
+  }, [user]);
   return (
     <>
       {error ? <ErrorAlert message={error} onClose={clearError} /> : null}

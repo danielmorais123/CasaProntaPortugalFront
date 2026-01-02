@@ -13,11 +13,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/hooks/services/api";
 import { Property, PropertyType } from "@/types/models";
-import { useRouter } from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 import { Alert as AlertComponent } from "@/components/Alert";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
 import { useQuery } from "@tanstack/react-query";
+// import { IslandDock } from "@/components/IslandDock";
+
+// function mapPathToDock(path: string) {
+//   if (path.startsWith("/profile")) return "profile";
+//   if (path.startsWith("/help")) return "help";
+//   if (path.startsWith("/settings")) return "settings";
+//   return "home";
+// }
 
 function Pill({ text }: { text: string }) {
   return (
@@ -141,6 +149,7 @@ function PropertyMiniCard({
 export default function HomeScreen() {
   const { logout } = useContext(AuthContext);
   const router = useRouter();
+  const pathname = usePathname();
 
   // React Query for properties
   const {
@@ -356,12 +365,21 @@ export default function HomeScreen() {
 
         <View style={{ height: 18 }} />
       </ScrollView>
+      {/* <IslandDock
+        active={mapPathToDock(pathname) as any}
+        onNavigate={(r) => {
+          if (r === "home") router.push("/");
+          if (r === "profile") router.push("/profile");
+          if (r === "help") router.push("/help");
+          if (r === "settings") router.push("/settings");
+        }}
+      /> */}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  safe: { flex: 1, backgroundColor: "#fff", position: "relative" },
   container: { padding: 16, paddingBottom: 24 },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -401,7 +419,7 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: "#fff", fontWeight: "900", fontSize: 12 },
 
-  quickRow: { flexDirection: "row", gap: 10, marginTop: 6 },
+  quickRow: { flexDirection: "row", gap: 10, marginTop: 6, flexWrap: "wrap" },
 
   quickCard: {
     flex: 1,
