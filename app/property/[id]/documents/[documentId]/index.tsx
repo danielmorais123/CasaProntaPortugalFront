@@ -613,7 +613,7 @@ export default function DocumentDetailScreen() {
         </View>
 
         {/* Metadata */}
-        <SectionHeader title="Detalhes" />
+        {/* <SectionHeader title="Detalhes" />
 
         <View style={styles.detailsCard}>
           <DetailLine icon="document-outline" label="Tipo" value={title} />
@@ -632,7 +632,7 @@ export default function DocumentDetailScreen() {
             }
             valueTone={expStatus.tone}
           />
-        </View>
+        </View> */}
 
         <View style={{ height: 24 }} />
       </ScrollView>

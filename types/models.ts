@@ -79,9 +79,9 @@ export enum DocumentCategory {
 }
 
 export enum PermissionLevel {
-  Read = "Read",
-  Admin = "Admin",
-  Temporary = "Temporary",
+  Read = 0,
+  Admin = 1,
+  Temporary = 2,
 }
 
 export interface Document {

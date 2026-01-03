@@ -70,7 +70,7 @@ export function ShareProperty({ propertyId }: { propertyId: string }) {
     id: string;
     label: string;
   } | null>(null);
-  const [permissionLevel, setPermissionLevel] = useState("2");
+  const [permissionLevel, setPermissionLevel] = useState("0");
   const [expiresAt, setExpiresAt] = useState<string | Date | null>("");
   const [banner, setBanner] = useState<{ tone: BannerTone; message: string }>({
     tone: null,
@@ -84,7 +84,7 @@ export function ShareProperty({ propertyId }: { propertyId: string }) {
   };
 
   const permissionText = useMemo(
-    () => (permissionLevel === "2" ? "Gestão" : "Leitura"),
+    () => (permissionLevel === "1" ? "Gestão" : "Leitura"),
     [permissionLevel]
   );
 
@@ -182,8 +182,8 @@ export function ShareProperty({ propertyId }: { propertyId: string }) {
       <SelectInput
         label="Nível de permissão"
         options={[
-          { label: "Leitura", value: "1" },
-          { label: "Gestão", value: "2" },
+          { label: "Leitura", value: "0" },
+          { label: "Gestão", value: "1" },
         ]}
         value={permissionLevel}
         onChange={setPermissionLevel}
