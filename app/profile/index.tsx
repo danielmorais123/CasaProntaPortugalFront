@@ -327,12 +327,6 @@ export default function ProfileScreen() {
             onPress={() => router.push("/security")}
           />
         </View>
-
-        <Button
-          variant="ghost"
-          title="Voltar à página inicial"
-          onPress={() => router.push("/")}
-        />
       </ScrollView>
     </SafeAreaView>
   );

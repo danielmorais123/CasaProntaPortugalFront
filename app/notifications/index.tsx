@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
+import { LoadErrorScreen } from "@/components/StateScreens";
 
 type NotificationType = "document" | "alert" | "system";
 
@@ -102,18 +103,13 @@ export default function NotificationsScreen() {
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
-          <Text style={styles.emptyTitle}>Erro ao carregar notificações</Text>
-          <Text style={styles.emptyText}>Tenta novamente mais tarde.</Text>
-          <Pressable onPress={() => refetch()} style={{ marginTop: 12 }}>
-            <Text style={{ color: "#2563EB", fontWeight: "900" }}>
-              Tentar novamente
-            </Text>
-          </Pressable>
-        </View>
+        <LoadErrorScreen
+          onRetry={() => console.log("Retrying...")}
+          title="Erro ao carregar dados"
+          subtitle={
+            "Não conseguimos obter os imóveis/alertas. Tenta novamente."
+          }
+        />
       </SafeAreaView>
     );
   }
