@@ -62,3 +62,8 @@ export const getSuggestionsByScope = async (scope: string) => {
   const response = await api.get(`/document/suggestions/by-scope/${scope}`);
   return response.data;
 };
+// Get documents by propertyId
+export const getDocumentsByPropertyId = async (propertyId: string) => {
+  const response = await api.get(`/document/by-property/${propertyId}`);
+  return response.data;
+};

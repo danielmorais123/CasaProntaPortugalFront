@@ -23,7 +23,7 @@ export function propertyTypeToId(type: PropertyType): number | undefined {
  * Converts a PropertyType enum value to its canonical string representation.
  * Returns undefined if the value is not a valid PropertyType.
  */
-export function propertyTypeToString(type: PropertyType): string | undefined {
+export function propertyTypeToString(type?: PropertyType): string | undefined {
   switch (type) {
     case PropertyType.House:
       return "house";

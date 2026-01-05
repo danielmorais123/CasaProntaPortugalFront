@@ -39,6 +39,7 @@ export default function PaymentScreen() {
 
   // Detect Stripe redirect
   const handleNavigationStateChange = (navState: any) => {
+    console.log({ navState });
     if (handled.current) return;
     if (
       navState.url.includes("property") // success URL
@@ -54,17 +55,17 @@ export default function PaymentScreen() {
       queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
       router.push("/payments/payment-error");
     }
+    if (navState.url.startsWith("http://192.168.8.100:8081/")) {
+      handled.current = true;
+      queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      router.replace("/profile");
+    }
   };
 
   if (!checkoutUrl) return <Text>Loading...</Text>;
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-      <Button
-        onPress={() => router.back()}
-        title="Voltar para a app"
-        variant="default"
-      />
       <WebView
         source={{ uri: checkoutUrl }}
         onNavigationStateChange={handleNavigationStateChange}

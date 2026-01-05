@@ -320,8 +320,8 @@ export default function PropertyDetailScreen() {
             docs.length > 0
               ? () =>
                   router.push({
-                    pathname: "/property/add-documents",
-                    params: { propertyId: item.id },
+                    pathname: "/property/[id]/documents",
+                    params: { propertyId: item.id, propertyType: item.type },
                   })
               : undefined
           }

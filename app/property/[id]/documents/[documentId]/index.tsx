@@ -20,7 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
 // import { getDocumentById } from "@/hooks/services/documents"; // <- if exists
 import { LoadErrorScreen } from "@/components/StateScreens";
-import { getDocumentById } from "@/hooks/services/document";
+import { getAllDocuments, getDocumentById } from "@/hooks/services/document";
 
 if (
   Platform.OS === "android" &&
@@ -321,8 +321,8 @@ export default function DocumentDetailScreen() {
     queryFn: async () => {
       // Replace with your service if you have it:
       // return await getDocumentById(id);
-      console.log("document");
-      return await getDocumentById(id);
+      console.log("document", id);
+      return await getAllDocuments();
     },
     staleTime: 1000 * 60 * 2,
   });

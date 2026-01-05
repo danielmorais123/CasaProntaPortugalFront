@@ -22,7 +22,7 @@ import { api } from "@/hooks/services/api";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { AuthContext } from "@/context/AuthContext";
-import { propertyTypeFromString } from "@/utils/property";
+import { propertyTypeFromString, propertyTypeToString } from "@/utils/property";
 import { documentTypeToId, documentTypeToString } from "@/utils/document";
 import { getMaxFileSizeForPlan } from "@/utils/plan";
 
@@ -93,7 +93,7 @@ export default function DocumentUploadSuggestionsScreen() {
     error: queryError,
     refetch,
   } = useQuery<SuggestedDoc[]>({
-    queryKey: ["suggestions", propertyType, propertyId],
+    queryKey: ["suggestions", propertyTypeToString(propertyType)],
     queryFn: async () => {
       if (!propertyId) return [];
       const data: number[] = await getSuggestionsByPropertyType(propertyType!);
