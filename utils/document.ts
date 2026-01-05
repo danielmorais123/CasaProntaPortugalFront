@@ -135,3 +135,15 @@ export function documentTypeToId(type: DocumentType): number {
 export function documentTypeToString(type: DocumentType): string {
   return DocumentTypeName[type] || "Documento";
 }
+export function getExpirationStatus(date?: string | null) {
+  if (!date) return null;
+
+  const today = new Date();
+  const exp = new Date(date);
+
+  const diffDays = (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (diffDays < 0) return "expired";
+  if (diffDays <= 30) return "soon";
+  return null;
+}

@@ -7,6 +7,9 @@ import {
 import React, { createContext } from "react";
 import type { User } from "@/types/models";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
+import { Platform } from "react-native";
+import { registerDevice } from "@/hooks/services/device";
 
 interface AuthContextProps {
   user: User | null;
@@ -46,8 +49,18 @@ export const AuthProvider = ({ children }: any) => {
   const login = async (email: string, password: string) => {
     try {
       const res = await loginAPI(email, password);
-      // Atualiza o cache do user
       queryClient.setQueryData(["user"], res.user);
+
+      // --- Regista o dispositivo após login ---
+      let pushToken = "";
+      try {
+        pushToken = (await Notifications.getExpoPushTokenAsync()).data;
+        await registerDevice(pushToken, Platform.OS);
+      } catch (e) {
+        console.warn("Falha ao registar dispositivo:", e);
+      }
+      // ----------------------------------------
+
       return true;
     } catch {
       return false;
