@@ -5,5 +5,5 @@ import { api } from "./api";
  * @param userId The user ID to send the alert to.
  */
 export async function sendUsageAlert(userId: string) {
-  await api.post(`/api/alerts/send-usage-alert/${userId}`);
+  await api.post(`/alerts/send-usage-alert/${userId}`);
 }

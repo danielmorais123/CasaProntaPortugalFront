@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 // import * as Notifications from "expo-notifications";
-// import { registerForPushNotifications } from "@/hooks/services/pushNotifications";
+import { registerForPushNotifications } from "@/hooks/services/pushNotifications";
 
 import { useEffect, useContext } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
@@ -40,11 +40,11 @@ function RootNavigation() {
   //   return () => responseListener.remove();
   // }, [router]);
 
-  // useEffect(() => {
-  //   if (user) {
-  //     registerForPushNotifications();
-  //   }
-  // }, [user]);
+  useEffect(() => {
+    if (user) {
+      registerForPushNotifications();
+    }
+  }, [user]);
   return (
     <>
       {error ? <ErrorAlert message={error} onClose={clearError} /> : null}

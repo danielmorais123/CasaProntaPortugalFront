@@ -28,7 +28,6 @@ export async function registerForPushNotifications() {
   if (finalStatus !== "granted") return;
 
   const token = (await Notifications.getExpoPushTokenAsync()).data;
-
   await api.post("/devices/register", {
     pushToken: token,
     platform: Platform.OS,
