@@ -46,7 +46,7 @@ export default function PropertyDocumentsScreen() {
 
   const propertyId = params.propertyId;
   const propertyType = propertyTypeFromString(params.propertyType);
-
+  console.log({ propertyId, propertyType });
   /* ---------------------------- EXISTING DOCS ----------------------------- */
   const {
     data: documents = [],
@@ -67,6 +67,7 @@ export default function PropertyDocumentsScreen() {
   } = useQuery<SuggestedDoc[]>({
     queryKey: ["suggestions", propertyTypeToString(propertyType)],
     queryFn: async () => {
+      console.log("PropertyType", propertyType);
       const types = await getSuggestionsByPropertyType(propertyType!);
       return types.map((t) => ({
         type: t,

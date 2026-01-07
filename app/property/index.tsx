@@ -262,7 +262,7 @@ export default function PropertiesScreen() {
               <BuildingCard
                 key={b.id}
                 building={b}
-                onOpenBuilding={() => router.push(`/property/${b.id}`)}
+                onOpenBuilding={() => router.push(`/property/${b.id}/building`)}
                 onOpenUnit={(unitId) => router.push(`/property/${unitId}`)}
               />
             ))}

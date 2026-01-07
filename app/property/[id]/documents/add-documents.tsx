@@ -61,7 +61,7 @@ export default function DocumentUploadSuggestionsScreen() {
 
   const propertyId = params.propertyId;
   const propertyType = propertyTypeFromString(params.propertyType);
-
+  console.log({ propertyId, propertyType: params.propertyType });
   const [uploadingType, setUploadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { data: plans = [] } = useQuery({

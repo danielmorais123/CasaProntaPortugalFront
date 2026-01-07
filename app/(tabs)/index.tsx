@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/hooks/services/api";
 import { Property, PropertyType } from "@/types/models";
-import { useRouter, usePathname } from "expo-router";
+import { useRouter } from "expo-router";
 import { Alert as AlertComponent } from "@/components/Alert";
 import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";

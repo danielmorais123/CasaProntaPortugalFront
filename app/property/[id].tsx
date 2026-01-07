@@ -208,7 +208,7 @@ export default function PropertyDetailScreen() {
                 </Text>
                 <Pressable
                   style={styles.primaryCta}
-                  onPress={() => router.push("/property/add-unit")}
+                  onPress={() => router.push(`/property/${id}/add-unit`)}
                 >
                   <Text style={styles.primaryCtaText}>Adicionar fração</Text>
                 </Pressable>

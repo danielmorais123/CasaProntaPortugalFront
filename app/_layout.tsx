@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 // import * as Notifications from "expo-notifications";
 // import { registerForPushNotifications } from "@/hooks/services/pushNotifications";
 
-import { useState, useEffect, useContext } from "react";
+import { useEffect, useContext } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { AuthContext, AuthProvider } from "../context/AuthContext";
 import { ErrorProvider, useError } from "@/context/ErrorContext";
@@ -17,14 +17,8 @@ function RootNavigation() {
   const router = useRouter();
   const { user, loading } = useContext(AuthContext);
   const { error, clearError } = useError();
-  const [layoutReady, setLayoutReady] = useState(false);
-
   useEffect(() => {
-    setLayoutReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!loading && layoutReady) {
+    if (!loading) {
       const isAuthRoute = segments[0] === "(auth)";
       if (!user && !isAuthRoute) {
         router.replace("/(auth)/login");
@@ -32,8 +26,7 @@ function RootNavigation() {
         router.replace("/");
       }
     }
-  }, [segments, user, loading, layoutReady, router]);
-  console.log(user);
+  }, [segments, user, loading, router]);
   // useEffect(() => {
   //   const responseListener =
   //     Notifications.addNotificationResponseReceivedListener((response) => {

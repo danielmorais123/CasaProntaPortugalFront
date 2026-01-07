@@ -57,7 +57,7 @@ export default function LoginScreen() {
   const { login } = useContext(AuthContext);
   const { setError } = useError();
   const router = useRouter();
-
+  console.log("LOGIN");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 

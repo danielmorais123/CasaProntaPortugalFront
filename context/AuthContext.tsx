@@ -103,7 +103,7 @@ export const AuthProvider = ({ children }: any) => {
     try {
       const res = await api.post("/auth/logout", {}, { withCredentials: true });
 
-      queryClient.invalidateQueries({ queryKey: ["user"] });
+      queryClient.setQueryData(["user"], null);
     } catch {}
   };
 
