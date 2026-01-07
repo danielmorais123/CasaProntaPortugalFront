@@ -33,7 +33,7 @@ function RootNavigation() {
       }
     }
   }, [segments, user, loading, layoutReady, router]);
-
+  console.log(user);
   // useEffect(() => {
   //   const responseListener =
   //     Notifications.addNotificationResponseReceivedListener((response) => {

@@ -16,27 +16,9 @@ import { Property } from "@/types/models";
 import { getAllProperties } from "@/hooks/services/property";
 import { useQuery } from "@tanstack/react-query";
 
-function Pill({
-  text,
-  active,
-  onPress,
-}: {
-  text: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.pill, active && styles.pillActive]}
-      disabled={!onPress}
-    >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>
-        {text}
-      </Text>
-    </Pressable>
-  );
-}
+/* -----------------------------------------------------
+ * Small reusable components
+ * ---------------------------------------------------*/
 
 function EmptyState({
   title,
@@ -104,11 +86,70 @@ function PropertyRow({ p, onPress }: { p: Property; onPress: () => void }) {
   );
 }
 
+function BuildingCard({
+  building,
+  onOpenBuilding,
+  onOpenUnit,
+}: {
+  building: Property;
+  onOpenBuilding: () => void;
+  onOpenUnit: (unitId: string) => void;
+}) {
+  return (
+    <View style={styles.buildingCard}>
+      {/* Header do prédio */}
+      <Pressable onPress={onOpenBuilding} style={styles.buildingHeader}>
+        <View style={styles.buildingIcon}>
+          <Ionicons name="business-outline" size={18} />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {building.name}
+          </Text>
+          <Text style={styles.rowSubtitle} numberOfLines={1}>
+            {building.streetName || "—"}
+          </Text>
+
+          <Text style={styles.buildingMeta}>
+            {building.units?.length ?? 0} frações •{" "}
+            {building.documents?.length ?? 0} docs comuns
+          </Text>
+        </View>
+
+        <Ionicons name="chevron-forward" size={18} color="#999" />
+      </Pressable>
+
+      {/* Frações */}
+      {building.units?.length > 0 && (
+        <View style={styles.unitsList}>
+          {building.units.map((u) => (
+            <Pressable
+              key={u.id}
+              onPress={() => onOpenUnit(u.id)}
+              style={styles.unitRow}
+            >
+              <Ionicons name="home-outline" size={16} color="#555" />
+              <Text style={styles.unitText} numberOfLines={1}>
+                {u.name}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#BBB" />
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/* -----------------------------------------------------
+ * Main screen
+ * ---------------------------------------------------*/
+
 export default function PropertiesScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
 
-  // React Query for properties
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["properties"],
     queryFn: async () => {
@@ -120,26 +161,27 @@ export default function PropertiesScreen() {
 
   const items = data ?? [];
 
-  const filtered = useMemo(() => {
+  const { buildings, standalone } = useMemo(() => {
+    const buildings = items.filter((p) => p.type === 4); // Building
+    const standalone = items.filter((p) => p.type !== 4 && !p.parentPropertyId);
+    return { buildings, standalone };
+  }, [items]);
+
+  const filteredStandalone = useMemo(() => {
     const q = query.trim().toLowerCase();
+    if (!q) return standalone;
 
-    let list = items;
-
-    // filtro por tipo (opcional)
-    // if (filter !== "all") list = list.filter((p) => p.type === filter);
-
-    if (!q) return list;
-
-    return list.filter((p) => {
-      const n = (p.name ?? "").toLowerCase();
-      const s = (p.streetName ?? "").toLowerCase();
-      return n.includes(q) || s.includes(q);
+    return standalone.filter((p) => {
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.streetName.toLowerCase().includes(q)
+      );
     });
-  }, [items, query /*, filter*/]);
+  }, [standalone, query]);
 
   if (isLoading || isFetching) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <ActivityIndicator />
           <Text style={styles.loadingText}>A carregar imóveis…</Text>
@@ -150,7 +192,7 @@ export default function PropertiesScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={40} color="#F87171" />
           <Text style={styles.emptyTitle}>Erro ao carregar imóveis</Text>
@@ -164,7 +206,7 @@ export default function PropertiesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -176,15 +218,14 @@ export default function PropertiesScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Os meus imóveis</Text>
             <Text style={styles.subtitle}>
-              Todos os imóveis num só sítio. Pesquisa, entra e gere documentos e
-              alertas.
+              Moradias, apartamentos, terrenos e prédios organizados num só
+              sítio.
             </Text>
           </View>
 
           <Pressable
             style={styles.addBtn}
             onPress={() => router.push("/property/add-property")}
-            hitSlop={10}
           >
             <Ionicons name="add" size={18} color="#fff" />
           </Pressable>
@@ -196,47 +237,39 @@ export default function PropertiesScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Pesquisar por nome ou rua…"
+            placeholder="Pesquisar imóveis…"
             placeholderTextColor="#999"
             style={styles.search}
           />
-          {query.length > 0 ? (
-            <Pressable onPress={() => setQuery("")} hitSlop={10}>
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery("")}>
               <Ionicons name="close-circle" size={18} color="#999" />
             </Pressable>
-          ) : null}
+          )}
         </View>
-
-        {/* Filters (opcional) */}
-        {/*
-        <View style={styles.filters}>
-          <Pill text="Todos" active={filter === "all"} onPress={() => setFilter("all")} />
-          <Pill text="Moradia" active={filter === PropertyType.House} onPress={() => setFilter(PropertyType.House)} />
-          <Pill text="Apartamento" active={filter === PropertyType.Apartment} onPress={() => setFilter(PropertyType.Apartment)} />
-          <Pill text="Terreno" active={filter === PropertyType.Land} onPress={() => setFilter(PropertyType.Land)} />
-          <Pill text="Prédio" active={filter === PropertyType.Building} onPress={() => setFilter(PropertyType.Building)} />
-          <Pill text="Fração" active={filter === PropertyType.Unit} onPress={() => setFilter(PropertyType.Unit)} />
-        </View>
-        */}
 
         {/* List */}
         {items.length === 0 ? (
           <EmptyState
             title="Sem imóveis ainda"
-            message="Cria o teu primeiro imóvel para começares a organizar documentação e receber alertas."
+            message="Cria o teu primeiro imóvel para começares."
             actionText="Adicionar imóvel"
             onAction={() => router.push("/property/add-property")}
           />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            title="Sem resultados"
-            message="Não encontrei imóveis com esse termo. Tenta outra pesquisa."
-          />
         ) : (
           <View style={styles.list}>
-            {filtered.map((p) => (
+            {buildings.map((b) => (
+              <BuildingCard
+                key={b.id}
+                building={b}
+                onOpenBuilding={() => router.push(`/property/${b.id}`)}
+                onOpenUnit={(unitId) => router.push(`/property/${unitId}`)}
+              />
+            ))}
+
+            {filteredStandalone.map((p) => (
               <PropertyRow
-                key={p.id?.toString() ?? p.name}
+                key={p.id}
                 p={p}
                 onPress={() => router.push(`/property/${p.id}`)}
               />
@@ -249,6 +282,10 @@ export default function PropertiesScreen() {
     </SafeAreaView>
   );
 }
+
+/* -----------------------------------------------------
+ * Styles
+ * ---------------------------------------------------*/
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
@@ -293,19 +330,9 @@ const styles = StyleSheet.create({
   },
   search: { flex: 1, fontSize: 14, color: "#111" },
 
-  filters: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 10 },
-  pill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "#F2F2F2",
-  },
-  pillActive: { backgroundColor: "#111" },
-  pillText: { fontSize: 12, fontWeight: "800", color: "#111" },
-  pillTextActive: { color: "#fff" },
-
   list: { marginTop: 12, gap: 10 },
 
+  /* Generic property row */
   row: {
     borderWidth: 1,
     borderColor: "#EAEAEA",
@@ -332,7 +359,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginTop: 8,
-    flexWrap: "wrap",
   },
   metaText: { fontSize: 12, fontWeight: "800", color: "#666" },
   metaStrong: { color: "#111", fontWeight: "900" },
@@ -358,6 +384,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   badgeTextMuted: { color: "#999", fontWeight: "900", fontSize: 12 },
+
+  /* Building */
+  buildingCard: {
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  buildingHeader: {
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  buildingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 16,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buildingMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#666",
+  },
+
+  unitsList: {
+    borderTopWidth: 1,
+    borderColor: "#EEE",
+  },
+  unitRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FAFAFA",
+  },
+  unitText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111",
+  },
 
   emptyBox: {
     marginTop: 12,

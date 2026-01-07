@@ -4,7 +4,7 @@ import {
   profileUserLoggedIn,
   register as registerAPI,
 } from "@/hooks/services/auth";
-import React, { createContext } from "react";
+import React, { createContext, useState } from "react";
 import type { User } from "@/types/models";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
@@ -22,6 +22,10 @@ interface AuthContextProps {
     confirmPassword: string
   ) => Promise<boolean>;
   logout: () => Promise<void>;
+  devicePending: boolean;
+  pendingPushToken: string | null;
+  setDevicePending: (pending: boolean) => void;
+  setPendingPushToken: (token: string | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextProps>({
@@ -30,10 +34,16 @@ export const AuthContext = createContext<AuthContextProps>({
   login: async () => false,
   register: async () => false,
   logout: async () => {},
+  devicePending: false,
+  pendingPushToken: null,
+  setDevicePending: () => {},
+  setPendingPushToken: () => {},
 });
 
 export const AuthProvider = ({ children }: any) => {
   const queryClient = useQueryClient();
+  const [devicePending, setDevicePending] = useState(false);
+  const [pendingPushToken, setPendingPushToken] = useState<string | null>(null);
   // Query para buscar o utilizador autenticado
   const {
     data: user,
@@ -51,16 +61,22 @@ export const AuthProvider = ({ children }: any) => {
       const res = await loginAPI(email, password);
       queryClient.setQueryData(["user"], res.user);
 
-      // --- Regista o dispositivo após login ---
       let pushToken = "";
       try {
         pushToken = (await Notifications.getExpoPushTokenAsync()).data;
-        await registerDevice(pushToken, Platform.OS);
+        const deviceRes = await registerDevice(pushToken, Platform.OS);
+        console.log("Device registration response:", deviceRes);
+        if (deviceRes.requiresConfirmation) {
+          setDevicePending(true);
+          setPendingPushToken(pushToken);
+          return false; // block app usage until confirmed
+        }
       } catch (e) {
         console.warn("Falha ao registar dispositivo:", e);
       }
-      // ----------------------------------------
 
+      setDevicePending(false);
+      setPendingPushToken(null);
       return true;
     } catch {
       return false;
@@ -85,14 +101,25 @@ export const AuthProvider = ({ children }: any) => {
 
   const logout = async () => {
     try {
-      await api.post("/auth/logout", {}, { withCredentials: true });
+      const res = await api.post("/auth/logout", {}, { withCredentials: true });
+
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     } catch {}
-    queryClient.removeQueries({ queryKey: ["user"] });
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading: isLoading, login, logout, register }}
+      value={{
+        user,
+        loading: isLoading,
+        login,
+        logout,
+        register,
+        devicePending,
+        pendingPushToken,
+        setDevicePending,
+        setPendingPushToken,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -150,7 +150,7 @@ function PropertyMiniCard({
 export default function HomeScreen() {
   const { logout } = useContext(AuthContext);
   const router = useRouter();
-  const pathname = usePathname();
+  // const pathname = usePathname();
 
   // React Query for properties
   const {
@@ -196,7 +196,10 @@ export default function HomeScreen() {
 
   const retryCount = useRef(0);
   const [retryDisabled, setRetryDisabled] = useState(false);
-
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/(auth)/login");
+  };
   const onRetry = async () => {
     if (retryDisabled) return;
     try {
@@ -277,7 +280,11 @@ export default function HomeScreen() {
             <Ionicons name="person-circle-outline" size={22} />
           </Pressable>
 
-          <Pressable style={styles.logoutBtn} onPress={logout} hitSlop={10}>
+          <Pressable
+            style={styles.logoutBtn}
+            onPress={handleLogout}
+            hitSlop={10}
+          >
             <Text style={styles.logoutText}>Sair</Text>
           </Pressable>
         </View>

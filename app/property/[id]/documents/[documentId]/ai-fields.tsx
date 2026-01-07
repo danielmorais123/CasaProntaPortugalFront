@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
 import { LoadErrorScreen } from "@/components/StateScreens";
+import { getDocumentById } from "@/hooks/services/document";
 
 type ApiExtractResponse = {
   fields: Record<string, string>;
@@ -32,7 +33,17 @@ function clamp01(n: number) {
   if (Number.isNaN(n)) return 0;
   return Math.max(0, Math.min(1, n));
 }
-
+function getGuidFromParams(params: {
+  documentId?: string;
+  id?: string;
+}): string | null {
+  const guidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (params.documentId && guidRegex.test(params.documentId))
+    return params.documentId;
+  if (params.id && guidRegex.test(params.id)) return params.id;
+  return null;
+}
 function confidenceTone(conf: number) {
   const c = clamp01(conf);
   if (c >= 0.8) return "ok";
@@ -254,7 +265,8 @@ function FieldRow({
 export default function DocumentAiFieldsEditScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const id = String(params.id ?? "");
+  const id = getGuidFromParams(params);
+  console.log("Editing AI fields for document ID:", id);
   const qc = useQueryClient();
 
   // local editable state
@@ -269,12 +281,11 @@ export default function DocumentAiFieldsEditScreen() {
     queryKey: ["document", id],
     enabled: !!id,
     queryFn: async () => {
-      const res = await api.get(`/documents/${id}`);
-      return res.data;
+      return await getDocumentById(id!);
     },
     staleTime: 1000 * 30,
   });
-
+  console.log("Document data:", docQuery.data);
   const extractedFromDoc = useMemo(() => {
     const f =
       docQuery.data?.extractedFields ?? docQuery.data?.ExtractedFields ?? null;
@@ -318,7 +329,7 @@ export default function DocumentAiFieldsEditScreen() {
   const updateMutation = useMutation({
     mutationFn: async (fields: Record<string, string>) => {
       const res = await api.patch<ApiUpdateResponse>(
-        `/documents/${id}/ai-fields`,
+        `/document/${id}/ai-fields`,
         {
           fields,
         }
@@ -367,7 +378,7 @@ export default function DocumentAiFieldsEditScreen() {
   const confTone = confidenceTone(confidence);
 
   const loading = docQuery.isLoading || docQuery.isFetching;
-  console.log({ params });
+  console.log({ loading, docQueryError: docQuery.error });
   if (!id) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>

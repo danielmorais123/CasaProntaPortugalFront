@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // If you have these helpers, use them. Otherwise replace with api.get in queryFn.
 import { api } from "@/hooks/services/api";
@@ -319,14 +319,11 @@ export default function DocumentDetailScreen() {
     queryKey: ["document", id],
     enabled: !!id,
     queryFn: async () => {
-      // Replace with your service if you have it:
-      // return await getDocumentById(id);
-      console.log("document", id);
-      return await getAllDocuments();
+      return await getDocumentById(id);
     },
     staleTime: 1000 * 60 * 2,
   });
-
+  console.log({ f: doc.extractionConfidence });
   const onRefresh = async () => {
     await refetch();
   };
@@ -342,13 +339,13 @@ export default function DocumentDetailScreen() {
   // - doc.fields (dictionary)
   // Adapt this mapping to your backend return.
   const aiFields: AiField[] = useMemo(() => {
-    const dict = (doc?.aiFields ?? doc?.fields ?? {}) as Record<string, string>;
+    const dict = (doc?.extractedFields ?? {}) as Record<string, string>;
     const entries = Object.entries(dict || {});
     return entries.map(([key, value]) => ({ key, value: value ?? "" }));
   }, [doc]);
 
   const aiConfidence: number = useMemo(() => {
-    const c = doc?.aiConfidence ?? doc?.confidence ?? 0;
+    const c = doc?.extractionConfidence ?? 0;
     return typeof c === "number" ? c : 0;
   }, [doc]);
 
@@ -430,7 +427,7 @@ export default function DocumentDetailScreen() {
             </Text>
 
             <Text style={styles.heroSub} numberOfLines={2}>
-              {doc?.propertyName ? `${doc.propertyName} • ` : ""}
+              {doc?.property.name ? `${doc.property.name} • ` : ""}
               {doc?.createdAt
                 ? `Upload: ${formatDateMaybe(doc.createdAt)}`
                 : "—"}
