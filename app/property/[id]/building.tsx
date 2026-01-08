@@ -163,6 +163,7 @@ export default function BuildingDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/property/[id]/documents",
+                //@ts-ignore
                 params: {
                   propertyId: building.id,
                   propertyType: PropertyType.Building.toString(),

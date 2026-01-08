@@ -178,6 +178,23 @@ export default function PropertyDetailScreen() {
           <Pressable style={styles.iconBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={18} />
           </Pressable>
+
+          <View style={{ flex: 1 }} />
+
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push({
+                pathname: "/property/[id]/documents",
+                params: {
+                  propertyId: item.id,
+                  propertyType: item.type.toString(),
+                },
+              })
+            }
+          >
+            <Ionicons name="folder-outline" size={18} />
+          </Pressable>
         </View>
 
         <Text style={styles.title}>{item.name}</Text>
@@ -228,8 +245,8 @@ export default function PropertyDetailScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.rowTitle}>{u.name}</Text>
                       <Text style={styles.rowSubtitle}>
-                        {u.documents?.length ?? 0} docs •{" "}
-                        {u.alerts?.length ?? 0} alertas
+                        {u.documents?.length ?? 0} docs •{u.alerts?.length ?? 0}{" "}
+                        alertas
                       </Text>
                     </View>
 

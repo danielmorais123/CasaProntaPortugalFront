@@ -97,7 +97,6 @@ function BuildingCard({
 }) {
   return (
     <View style={styles.buildingCard}>
-      {/* Header do prédio */}
       <Pressable onPress={onOpenBuilding} style={styles.buildingHeader}>
         <View style={styles.buildingIcon}>
           <Ionicons name="business-outline" size={18} />
@@ -112,7 +111,7 @@ function BuildingCard({
           </Text>
 
           <Text style={styles.buildingMeta}>
-            {building.units?.length ?? 0} frações •{" "}
+            {building.units?.length ?? 0} frações •
             {building.documents?.length ?? 0} docs comuns
           </Text>
         </View>
@@ -120,7 +119,6 @@ function BuildingCard({
         <Ionicons name="chevron-forward" size={18} color="#999" />
       </Pressable>
 
-      {/* Frações */}
       {building.units?.length > 0 && (
         <View style={styles.unitsList}>
           {building.units.map((u) => (
@@ -162,7 +160,7 @@ export default function PropertiesScreen() {
   const items = data ?? [];
 
   const { buildings, standalone } = useMemo(() => {
-    const buildings = items.filter((p) => p.type === 4); // Building
+    const buildings = items.filter((p) => p.type === 4);
     const standalone = items.filter((p) => p.type !== 4 && !p.parentPropertyId);
     return { buildings, standalone };
   }, [items]);
@@ -171,12 +169,11 @@ export default function PropertiesScreen() {
     const q = query.trim().toLowerCase();
     if (!q) return standalone;
 
-    return standalone.filter((p) => {
-      return (
+    return standalone.filter(
+      (p) =>
         p.name.toLowerCase().includes(q) ||
         p.streetName.toLowerCase().includes(q)
-      );
-    });
+    );
   }, [standalone, query]);
 
   if (isLoading || isFetching) {
@@ -213,6 +210,17 @@ export default function PropertiesScreen() {
           <RefreshControl refreshing={isFetching} onRefresh={refetch} />
         }
       >
+        {/* TOP BAR COM VOLTAR */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            hitSlop={10}
+          >
+            <Ionicons name="chevron-back" size={22} color="#111" />
+          </Pressable>
+        </View>
+
         {/* Header */}
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
@@ -291,6 +299,18 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
   container: { padding: 16, paddingBottom: 24 },
 
+  topBar: {
+    marginBottom: 6,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "#F2F2F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   loadingText: { color: "#666", fontWeight: "800" },
 
@@ -332,7 +352,6 @@ const styles = StyleSheet.create({
 
   list: { marginTop: 12, gap: 10 },
 
-  /* Generic property row */
   row: {
     borderWidth: 1,
     borderColor: "#EAEAEA",
@@ -385,7 +404,6 @@ const styles = StyleSheet.create({
   },
   badgeTextMuted: { color: "#999", fontWeight: "900", fontSize: 12 },
 
-  /* Building */
   buildingCard: {
     borderWidth: 1,
     borderColor: "#EAEAEA",

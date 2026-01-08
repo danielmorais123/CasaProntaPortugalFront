@@ -19,6 +19,7 @@ import { PlanLimits, SubscriptionPlanDto } from "@/types/models";
 import { useQuery } from "@tanstack/react-query";
 import { AuthContext } from "@/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
+import { BOTTOM_PADDING } from "./index";
 
 if (
   Platform.OS === "android" &&
@@ -320,7 +321,7 @@ export default function PlansHelpScreen() {
             </View>
 
             <Text style={styles.currentSpotlightSub}>
-              Limites:{" "}
+              Limites:
               <Text style={styles.strong}>
                 {limitsLine(currentPlan.limits ?? {})}
               </Text>
@@ -468,24 +469,24 @@ export default function PlansHelpScreen() {
                 {p.code === "business" ? (
                   <Text style={styles.note}>
                     Nota: o BUSINESS gere imóveis “soltos”. Para prédios com
-                    frações e documentos de partes comuns, usa{" "}
+                    frações e documentos de partes comuns, usa
                     <Text style={styles.noteStrong}>PORTFOLIO</Text>.
                   </Text>
                 ) : null}
 
                 {p.code === "portfolio" ? (
                   <Text style={styles.note}>
-                    PORTFOLIO permite gerir{" "}
+                    PORTFOLIO permite gerir
                     <Text style={styles.noteStrong}>
                       Prédio → Frações → Documentos
-                    </Text>{" "}
+                    </Text>
                     e também documentos do condomínio (partes comuns).
                   </Text>
                 ) : null}
 
                 {p.limits?.aiOnUpload ? (
                   <Text style={styles.note}>
-                    IA: analisa automaticamente os documentos{" "}
+                    IA: analisa automaticamente os documentos
                     <Text style={styles.noteStrong}>no momento do upload</Text>.
                   </Text>
                 ) : null}
@@ -512,7 +513,7 @@ export default function PlansHelpScreen() {
 
         <Accordion title="Qual a diferença entre BUSINESS e PORTFOLIO?">
           <Text style={styles.faqText}>
-            BUSINESS é para gerir muitos imóveis simples. PORTFOLIO é para gerir{" "}
+            BUSINESS é para gerir muitos imóveis simples. PORTFOLIO é para gerir
             <Text style={styles.noteStrong}>prédios/condomínios</Text> com
             frações e documentos de partes comuns.
           </Text>
@@ -532,7 +533,7 @@ export default function PlansHelpScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F8FAFC" },
+  safe: { flex: 1, backgroundColor: "#F8FAFC", paddingBottom: BOTTOM_PADDING },
   container: { padding: 16, paddingBottom: 28 },
 
   headerRow: {

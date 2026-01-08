@@ -139,6 +139,12 @@ export interface Property {
   createdAt?: string;
 }
 
+export enum UserRole {
+  User = 0, // utilizador normal
+  Admin = 1, // admin interno (suporte, backoffice)
+  SuperAdmin = 2, // só tu / equipa core
+}
+
 export interface User {
   id: string;
   name: string;
@@ -156,6 +162,7 @@ export interface User {
   isPremium?: boolean;
   maxProperties?: number;
   maxDocumentsPerProperty?: number;
+  role?: UserRole; // <-- add this line
 }
 
 export interface Alert {
@@ -201,10 +208,19 @@ export interface Subscription {
   createdAt: string;
   addons?: SubscriptionAddon[];
 }
-
+export enum AddonType {
+  ExtraIA,
+  LegalVault,
+  ExtraFractions,
+  ExtraBuildings,
+  ExtraUnitsPerBuilding,
+  ExtraAiDocs,
+  ExtraDocuments,
+  ExtraGuests,
+}
 export interface SubscriptionAddon {
   id: string;
-  type: number | string;
+  type: AddonType;
   quantity: number;
   subscriptionId: string;
 }
@@ -248,3 +264,32 @@ export type PagedPropertiesResponse = {
   pageSize: number;
   total: number;
 };
+export enum NotificationChannel {
+  InApp = 0,
+  Email = 1,
+  Push = 2,
+}
+
+export enum NotificationStatus {
+  Pending = 0,
+  Sent = 1,
+  Failed = 2,
+  Read = 3,
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  user?: User;
+  alertId?: string;
+  alert?: Alert;
+  channel: NotificationChannel;
+  title: string;
+  message: string;
+  status: NotificationStatus;
+  providerMessageId?: string;
+  error?: string;
+  createdAt: string;
+  sentAt?: string;
+  readAt?: string;
+}

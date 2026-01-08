@@ -27,6 +27,7 @@ async function getPlans(): Promise<SubscriptionPlanDto[]> {
   const res = await api.get("/subscriptions/plans");
   return res.data;
 }
+export const BOTTOM_PADDING = 40;
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -125,7 +126,13 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: "#F8FAFC",
+        paddingBottom: BOTTOM_PADDING,
+      }}
+    >
       <ScrollView contentContainerStyle={styles.container}>
         {alertMessage && (
           <Alert
@@ -199,7 +206,7 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitle}>Subscrição</Text>
               <Text style={styles.cardSubtitle}>
-                {formatPrice(currentPlanFromApi)} ·{" "}
+                {formatPrice(currentPlanFromApi)} ·
                 {currentPlanFromApi?.description ?? "—"}
               </Text>
             </View>
@@ -316,9 +323,9 @@ export default function ProfileScreen() {
           />
           <ActionRow
             icon="cloud-upload-outline"
-            title="Upload de documento"
-            subtitle="Envia PDF/imagens para um imóvel"
-            onPress={() => router.push("/documents/upload")}
+            title="Os meus imóveis"
+            subtitle="Consulta e gere os teus imóveis"
+            onPress={() => router.push("/property")}
           />
           <ActionRow
             icon="shield-checkmark-outline"

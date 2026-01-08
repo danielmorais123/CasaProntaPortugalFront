@@ -9,6 +9,7 @@ import { ErrorProvider, useError } from "@/context/ErrorContext";
 import { ErrorAlert } from "@/components/ErrorAlert";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { BottomIslandNav } from "@/components/IslandDock";
 
 const queryClient = new QueryClient();
 
@@ -27,18 +28,6 @@ function RootNavigation() {
       }
     }
   }, [segments, user, loading, router]);
-  // useEffect(() => {
-  //   const responseListener =
-  //     Notifications.addNotificationResponseReceivedListener((response) => {
-  //       const alertId = response.notification.request.content.data?.alertId;
-
-  //       if (alertId) {
-  //         router.push(`/alerts/${alertId}`);
-  //       }
-  //     });
-
-  //   return () => responseListener.remove();
-  // }, [router]);
 
   useEffect(() => {
     if (user) {
@@ -61,6 +50,7 @@ export default function Layout() {
           <AuthProvider>
             <ErrorProvider>
               <RootNavigation />
+              <BottomIslandNav />
             </ErrorProvider>
           </AuthProvider>
         </QueryClientProvider>

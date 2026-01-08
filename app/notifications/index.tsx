@@ -13,22 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/hooks/services/api";
 import { LoadErrorScreen } from "@/components/StateScreens";
-
-type NotificationType = "document" | "alert" | "system";
-
-type Notification = {
-  id: string;
-  title: string;
-  message: string;
-  createdAt: string;
-  isRead: boolean;
-  type: NotificationType;
-};
-
-async function fetchNotifications(): Promise<Notification[]> {
-  const res = await api.get("/notifications");
-  return res.data;
-}
+import { getNotifications } from "@/hooks/services/notification";
+import { Notification } from "@/types/models";
 
 export default function NotificationsScreen() {
   const queryClient = useQueryClient();
@@ -41,7 +27,7 @@ export default function NotificationsScreen() {
     refetch,
   } = useQuery<Notification[]>({
     queryKey: ["notifications"],
-    queryFn: fetchNotifications,
+    queryFn: async () => await getNotifications(),
     staleTime: 1000 * 60 * 2,
   });
 
@@ -50,7 +36,9 @@ export default function NotificationsScreen() {
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   };
 
-  const renderIcon = (type: NotificationType) => {
+  // Use alert?.type if available, otherwise fallback
+  const renderIcon = (notification: Notification) => {
+    const type = notification.alert?.type;
     switch (type) {
       case "document":
         return "document-text-outline";
@@ -61,29 +49,32 @@ export default function NotificationsScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: Notification }) => (
-    <Pressable
-      onPress={() => markAsRead(item.id)}
-      style={[styles.card, !item.isRead && styles.unreadCard]}
-    >
-      <View style={styles.iconContainer}>
-        <Ionicons
-          name={renderIcon(item.type)}
-          size={22}
-          color={item.isRead ? "#6B7280" : "#2563EB"}
-        />
-      </View>
-      <View style={styles.content}>
-        <Text style={[styles.title, !item.isRead && styles.unreadTitle]}>
-          {item.title}
-        </Text>
-        <Text style={styles.message}>{item.message}</Text>
-        <Text style={styles.date}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-    </Pressable>
-  );
+  const renderItem = ({ item }: { item: Notification }) => {
+    const isRead = !!item.readAt;
+    return (
+      <Pressable
+        onPress={() => markAsRead(item.id)}
+        style={[styles.card, !isRead && styles.unreadCard]}
+      >
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name={renderIcon(item)}
+            size={22}
+            color={isRead ? "#6B7280" : "#2563EB"}
+          />
+        </View>
+        <View style={styles.content}>
+          <Text style={[styles.title, !isRead && styles.unreadTitle]}>
+            {item.title}
+          </Text>
+          <Text style={styles.message}>{item.message}</Text>
+          <Text style={styles.date}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
 
   if (isLoading) {
     return (

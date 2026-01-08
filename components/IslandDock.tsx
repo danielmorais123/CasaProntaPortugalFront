@@ -1,165 +1,88 @@
 import React from "react";
-import {
-  View,
-  Pressable,
-  StyleSheet,
-  Dimensions,
-  Platform,
-} from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter, usePathname } from "expo-router";
 
-type DockRoute = "home" | "profile" | "help" | "settings";
-
-type Props = {
-  active: DockRoute;
-  onNavigate: (route: DockRoute) => void;
+type NavItem = {
+  key: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
 };
 
-const { width: SCREEN_W } = Dimensions.get("window");
-const ISLAND_W = Math.min(SCREEN_W - 18, 620); // almost full width
-
-const ROUTES: { key: DockRoute; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "home", icon: "home-outline" },
-  { key: "profile", icon: "person-outline" },
-  { key: "help", icon: "help-circle-outline" },
-  { key: "settings", icon: "settings-outline" },
+const NAV_ITEMS: NavItem[] = [
+  { key: "home", icon: "home-outline", route: "/" },
+  { key: "properties", icon: "business-outline", route: "/property" }, // replaced "help"
+  { key: "settings", icon: "settings-outline", route: "/settings" },
+  { key: "profile", icon: "person-outline", route: "/profile" },
 ];
 
-export function IslandDock({ active, onNavigate }: Props) {
-  const insets = useSafeAreaInsets();
+export function BottomIslandNav() {
+  const router = useRouter();
+  const pathname = usePathname();
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.wrap, { paddingBottom: Math.max(10, insets.bottom + 10) }]}
-    >
-      <View style={styles.shellShadow}>
-        <View style={styles.shell}>
-          {/* subtle top highlight like iOS */}
-          <View style={styles.shellHighlight} />
+    <View style={styles.wrap}>
+      <View style={styles.island}>
+        {NAV_ITEMS.map((item) => {
+          const active = pathname === item.route;
 
-          <View style={styles.row}>
-            {ROUTES.map((r) => {
-              const isActive = r.key === active;
-
-              return (
-                <Pressable
-                  key={r.key}
-                  onPress={() => onNavigate(r.key)}
-                  hitSlop={10}
-                  style={({ pressed }) => [
-                    styles.item,
-                    pressed && styles.itemPressed,
-                    isActive && styles.itemActive,
-                  ]}
-                >
-                  <Ionicons
-                    name={r.icon}
-                    size={22}
-                    color={isActive ? "#0F172A" : "#64748B"}
-                  />
-
-                  {/* tiny indicator */}
-                  <View
-                    style={[
-                      styles.dot,
-                      isActive ? styles.dotOn : styles.dotOff,
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+          return (
+            <Pressable
+              key={item.key}
+              onPress={() => router.push(item.route)}
+              style={[styles.iconBtn, active && styles.iconBtnActive]}
+            >
+              <Ionicons
+                name={item.icon}
+                size={22}
+                color={active ? "#111" : "#9CA3AF"}
+              />
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   wrap: {
     position: "absolute",
+    bottom: 24,
     left: 0,
     right: 0,
-    bottom: 0,
     alignItems: "center",
+    pointerEvents: "box-none",
   },
 
-  // soft floating shadow
-  shellShadow: {
-    width: ISLAND_W,
-    borderRadius: 26,
-    shadowColor: "#000",
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 16,
-  },
-
-  // “glass / premium” but consistent with your app (white + borders)
-  shell: {
-    width: "100%",
-    borderRadius: 26,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.92)",
+  island: {
+    width: "92%",
+    height: 64,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
+    borderColor: "#EEF2F7",
 
-  shellHighlight: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.95)",
-  },
-
-  row: {
-    height: 66,
-    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
 
-    // subtle inner surface, fits your palette
-    backgroundColor: "#F8FAFC",
-  },
-
-  item: {
-    flex: 1,
-    height: 52,
-    marginHorizontal: 6,
-    borderRadius: 18,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-  },
-
-  itemActive: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+
+    elevation: 8,
   },
 
-  itemPressed: {
-    opacity: Platform.OS === "ios" ? 0.9 : 0.95,
-    transform: [{ scale: 0.99 }],
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  dot: {
-    position: "absolute",
-    bottom: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 999,
+  iconBtnActive: {
+    backgroundColor: "#F3F4F6",
   },
-  dotOn: { backgroundColor: "#0F172A" },
-  dotOff: { backgroundColor: "transparent" },
 });

@@ -495,7 +495,7 @@ export default function CreatePropertyHelpScreen() {
           <Text style={styles.faqText}>
             Sim. No modo “Prédio”, os documentos das
             <Text style={styles.noteStrong}> partes comuns</Text> ficam no
-            prédio e os documentos da{" "}
+            prédio e os documentos da
             <Text style={styles.noteStrong}> fração</Text> ficam dentro da
             fração.
           </Text>

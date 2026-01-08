@@ -46,7 +46,6 @@ export default function PropertyDocumentsScreen() {
 
   const propertyId = params.propertyId;
   const propertyType = propertyTypeFromString(params.propertyType);
-  console.log({ propertyId, propertyType });
   /* ---------------------------- EXISTING DOCS ----------------------------- */
   const {
     data: documents = [],
@@ -58,7 +57,6 @@ export default function PropertyDocumentsScreen() {
     queryFn: () => getDocumentsByPropertyId(propertyId!),
     enabled: !!propertyId,
   });
-  console.log({ documents });
   /* ---------------------------- SUGGESTIONS -------------------------------- */
   const {
     data: suggestionsRaw = [],
@@ -169,6 +167,7 @@ export default function PropertyDocumentsScreen() {
                       onPress={() =>
                         router.push({
                           pathname: "/property/[id]/documents/[documentId]",
+                          //@ts-ignore
                           params: {
                             propertyId: doc.propertyId,
                             documentId: doc.id,
@@ -218,7 +217,7 @@ export default function PropertyDocumentsScreen() {
                               />
                               <Text
                                 style={[
-                                  styles.expiryText,
+                                  styles.expiringSoon,
                                   status === "expired"
                                     ? styles.expiredText
                                     : styles.expiringSoonText,

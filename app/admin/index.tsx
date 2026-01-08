@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   TextInput,
-  Platform,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,179 +23,38 @@ import { getPagedProperties } from "@/hooks/services/property";
 
 type TabKey = "users" | "properties";
 
-function Chip({ text }: { text: string }) {
-  return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{text}</Text>
-    </View>
-  );
-}
-
-function Segmented({
-  value,
-  onChange,
-}: {
-  value: TabKey;
-  onChange: (v: TabKey) => void;
-}) {
-  return (
-    <View style={styles.segmentWrap}>
-      <Pressable
-        onPress={() => onChange("users")}
-        style={[
-          styles.segmentBtn,
-          value === "users" && styles.segmentBtnActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.segmentText,
-            value === "users" && styles.segmentTextActive,
-          ]}
-        >
-          Utilizadores
-        </Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => onChange("properties")}
-        style={[
-          styles.segmentBtn,
-          value === "properties" && styles.segmentBtnActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.segmentText,
-            value === "properties" && styles.segmentTextActive,
-          ]}
-        >
-          Imóveis
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return <View style={styles.card}>{children}</View>;
-}
-
-function Input({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  icon,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder?: string;
-  icon?: any;
-}) {
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrap}>
-        {icon ? (
-          <View style={styles.inputIcon}>
-            <Ionicons name={icon} size={16} color="#6B7280" />
-          </View>
-        ) : null}
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor="#9CA3AF"
-          style={[styles.input, icon ? { paddingLeft: 38 } : null]}
-          autoCapitalize="none"
-        />
-      </View>
-    </View>
-  );
-}
-
-function Row({
-  title,
-  subtitle,
-  leftIcon,
-  badge,
-  onPress,
-}: {
-  title: string;
-  subtitle?: string;
-  leftIcon: any;
-  badge?: string;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress}>
-      <View style={styles.rowIcon}>
-        <Ionicons name={leftIcon} size={18} color="#2563EB" />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text style={styles.rowSubtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-
-      {badge ? <Chip text={badge} /> : null}
-      <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-    </Pressable>
-  );
-}
-
 export default function AdminScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<TabKey>("users");
 
-  // Filters and paging
-  const [userQueryInput, setUserQueryInput] = useState("");
-  const [userEmailInput, setUserEmailInput] = useState("");
-  const [userPlanInput, setUserPlanInput] = useState("");
-  const [propertyQueryInput, setPropertyQueryInput] = useState("");
   const [userQuery, setUserQuery] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userPlan, setUserPlan] = useState("");
   const [propertyQuery, setPropertyQuery] = useState("");
+
   const [userPage, setUserPage] = useState(1);
   const [propertyPage, setPropertyPage] = useState(1);
 
-  // Track selected plan for each user (by user id)
-  const [userPlanSelections, setUserPlanSelections] = useState<{
-    [userId: string]: string;
-  }>({});
+  const [planSelection, setPlanSelection] = useState<Record<string, string>>(
+    {}
+  );
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
-  // Plans
-  const {
-    data: plans = [],
-    isLoading: plansLoading,
-    refetch: refetchPlans,
-  } = useQuery({
+  const { data: plans = [] } = useQuery({
     queryKey: ["plans"],
     queryFn: getPlans,
-    staleTime: 1000 * 60 * 10,
   });
 
-  // Users
   const {
     data: usersData,
     isLoading: usersLoading,
     refetch: refetchUsers,
   } = useQuery({
     queryKey: ["admin-users", userPage, userQuery, userEmail, userPlan],
-    queryFn: async () =>
-      await getPagedUsers({
+    queryFn: () =>
+      getPagedUsers({
         page: userPage,
         pageSize: 20,
         query: userQuery || undefined,
@@ -205,15 +63,14 @@ export default function AdminScreen() {
       }),
   });
 
-  // Properties
   const {
     data: propertiesData,
     isLoading: propertiesLoading,
     refetch: refetchProperties,
   } = useQuery({
     queryKey: ["admin-properties", propertyPage, propertyQuery],
-    queryFn: async () =>
-      await getPagedProperties({
+    queryFn: () =>
+      getPagedProperties({
         page: propertyPage,
         pageSize: 20,
         query: propertyQuery || undefined,
@@ -221,70 +78,16 @@ export default function AdminScreen() {
   });
 
   const users = usersData?.items ?? [];
-  const usersTotal = usersData?.total ?? 0;
   const properties = propertiesData?.items ?? [];
-  const propertiesTotal = propertiesData?.total ?? 0;
 
-  const hasMoreUsers = userPage * 20 < usersTotal;
-  const hasMoreProperties = propertyPage * 20 < propertiesTotal;
-
-  const usersCount = users.length;
-  const propsCount = properties.length;
-
-  const onRefresh = async () => {
-    await Promise.all([refetchPlans(), refetchUsers(), refetchProperties()]);
-  };
-
-  const planOptions = useMemo(
-    () => [
-      { label: "Todos os planos", value: "" },
-      ...plans.map((plan) => ({
-        label: plan.name || plan.code,
-        value: plan.code,
-      })),
-    ],
-    [plans]
-  );
-
-  const resetUserFilters = () => {
-    setUserQueryInput("");
-    setUserEmailInput("");
-    setUserPlanInput("");
-    setUserQuery("");
-    setUserEmail("");
-    setUserPlan("");
-    setUserPage(1);
-  };
-
-  const resetPropertyFilters = () => {
-    setPropertyQueryInput("");
-    setPropertyQuery("");
-    setPropertyPage(1);
-  };
-
-  const applyUserFilters = () => {
-    setUserQuery(userQueryInput);
-    setUserEmail(userEmailInput);
-    setUserPlan(userPlanInput);
-    setUserPage(1);
-  };
-
-  const applyPropertyFilters = () => {
-    setPropertyQuery(propertyQueryInput);
-    setPropertyPage(1);
-  };
-
-  // Mutation for updating user plan
-  const updatePlanMutation = useMutation({
+  const updatePlan = useMutation({
     mutationFn: async ({
       userId,
       planCode,
     }: {
       userId: string;
       planCode: string;
-    }) => {
-      await updateUserSubscription(planCode);
-    },
+    }) => updateUserSubscription(planCode),
     onMutate: ({ userId }) => setUpdatingUserId(userId),
     onSettled: () => setUpdatingUserId(null),
     onSuccess: () => {
@@ -293,14 +96,20 @@ export default function AdminScreen() {
     },
   });
 
-  const activeCountText = useMemo(() => {
-    if (tab === "users") return `${usersCount} resultados`;
-    return `${propsCount} resultados`;
-  }, [tab, usersCount, propsCount]);
+  const planOptions = useMemo(
+    () =>
+      plans.map((p) => ({
+        label: p.name || p.code,
+        value: p.code,
+      })),
+    [plans]
+  );
 
-  if (plansLoading || usersLoading || propertiesLoading) {
+  const loading = usersLoading || propertiesLoading;
+
+  if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
           <ActivityIndicator />
           <Text style={styles.loadingText}>A carregar admin…</Text>
@@ -310,475 +119,261 @@ export default function AdminScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={false} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={false}
+            onRefresh={() => {
+              refetchUsers();
+              refetchProperties();
+            }}
+          />
         }
       >
-        {/* Top bar */}
-        <View style={styles.topBar}>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-            hitSlop={10}
-          >
-            <Ionicons name="chevron-back" size={18} color="#111827" />
+        {/* HEADER */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={20} />
           </Pressable>
 
           <View style={{ flex: 1 }}>
-            <Text style={styles.screenTitle}>Admin</Text>
-            <Text style={styles.screenSubtitle}>{activeCountText}</Text>
+            <Text style={styles.title}>Admin</Text>
+            <Text style={styles.subtitle}>
+              Gestão de utilizadores e imóveis
+            </Text>
           </View>
-
-          <Pressable style={styles.iconBtn} onPress={() => {}} hitSlop={10}>
-            <Ionicons name="options-outline" size={18} color="#111827" />
-          </Pressable>
         </View>
 
-        {/* Tabs */}
-        <Segmented value={tab} onChange={setTab} />
-
-        {/* Filters */}
-        <View style={{ marginTop: 12 }}>
-          <Text style={styles.sectionTitle}>Filtros</Text>
-
-          <Card>
-            {tab === "users" ? (
-              <>
-                <Input
-                  label="Pesquisa"
-                  value={userQueryInput}
-                  onChangeText={setUserQueryInput}
-                  placeholder="nome, id, etc…"
-                  icon="search-outline"
-                />
-
-                <Input
-                  label="Email"
-                  value={userEmailInput}
-                  onChangeText={setUserEmailInput}
-                  placeholder="ex: user@email.com"
-                  icon="mail-outline"
-                />
-
-                <SelectInput
-                  label="Plano"
-                  placeholder="Todos os planos"
-                  options={planOptions}
-                  value={userPlanInput}
-                  onChange={(v) => {
-                    setUserPlanInput(v);
-                  }}
-                />
-
-                <View style={styles.filterActions}>
-                  <Pressable style={styles.ghostBtn} onPress={resetUserFilters}>
-                    <Text style={styles.ghostBtnText}>Limpar</Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.primaryBtn}
-                    onPress={applyUserFilters}
-                  >
-                    <Text style={styles.primaryBtnText}>Aplicar</Text>
-                  </Pressable>
-                </View>
-              </>
-            ) : (
-              <>
-                <Input
-                  label="Pesquisa"
-                  value={propertyQueryInput}
-                  onChangeText={setPropertyQueryInput}
-                  placeholder="nome, rua, id…"
-                  icon="search-outline"
-                />
-
-                <View style={styles.filterActions}>
-                  <Pressable
-                    style={styles.ghostBtn}
-                    onPress={resetPropertyFilters}
-                  >
-                    <Text style={styles.ghostBtnText}>Limpar</Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.primaryBtn}
-                    onPress={applyPropertyFilters}
-                  >
-                    <Text style={styles.primaryBtnText}>Aplicar</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </Card>
+        {/* TABS */}
+        <View style={styles.tabs}>
+          {["users", "properties"].map((t) => (
+            <Pressable
+              key={t}
+              onPress={() => setTab(t as TabKey)}
+              style={[styles.tab, tab === t && styles.tabActive]}
+            >
+              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+                {t === "users" ? "Utilizadores" : "Imóveis"}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
-        {/* Results */}
-        <View style={{ marginTop: 12 }}>
-          <Text style={styles.sectionTitle}>Resultados</Text>
-          <Card>
-            {tab === "users" ? (
-              <>
-                {users.map((u, idx) => (
-                  <View key={`u-${u.id ?? idx}`}>
-                    <Row
-                      leftIcon="person-outline"
-                      title={u.name || u.email || "Utilizador"}
-                      subtitle={u.email || u.id}
-                      badge={
-                        (u.planName || u?.plan?.name || "").toUpperCase() ||
-                        undefined
-                      }
-                      onPress={() => {}}
-                    />
-                    {/* Plan select and update button */}
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                        marginVertical: 6,
-                      }}
-                    >
-                      <SelectInput
-                        label="Alterar plano"
-                        options={planOptions.slice(1)}
-                        value={userPlanSelections[u.id] ?? u.plan}
-                        onChange={(v) =>
-                          setUserPlanSelections((prev) => ({
-                            ...prev,
-                            [u.id]: v,
-                          }))
-                        }
-                      />
-                      <Pressable
-                        style={[
-                          styles.primaryBtn,
-                          updatingUserId === u.id && styles.pagerBtnDisabled,
-                        ]}
-                        onPress={() =>
-                          updatePlanMutation.mutate({
-                            userId: u.id,
-                            planCode: userPlanSelections[u.id],
-                          })
-                        }
-                        disabled={updatingUserId === u.id}
-                      >
-                        <Text style={styles.primaryBtnText}>
-                          {updatingUserId === u.id
-                            ? "A atualizar..."
-                            : "Atualizar"}
-                        </Text>
-                      </Pressable>
+        {/* FILTER CARD */}
+        <View style={styles.filterCard}>
+          <Text style={styles.cardTitle}>Filtros</Text>
+
+          {tab === "users" ? (
+            <>
+              <Input
+                placeholder="Pesquisar utilizador"
+                icon="search-outline"
+                value={userQuery}
+                onChangeText={setUserQuery}
+              />
+              <Input
+                placeholder="Email"
+                icon="mail-outline"
+                value={userEmail}
+                onChangeText={setUserEmail}
+              />
+              <SelectInput
+                label="Plano"
+                options={[{ label: "Todos", value: "" }, ...planOptions]}
+                value={userPlan}
+                onChange={setUserPlan}
+              />
+            </>
+          ) : (
+            <Input
+              placeholder="Pesquisar imóvel"
+              icon="search-outline"
+              value={propertyQuery}
+              onChangeText={setPropertyQuery}
+            />
+          )}
+        </View>
+
+        {/* RESULTS */}
+        <View style={{ gap: 12 }}>
+          {tab === "users"
+            ? users.map((u) => (
+                <View key={u.id} style={styles.resultCard}>
+                  <View style={styles.cardHeader}>
+                    <Ionicons name="person-outline" size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitleText}>
+                        {u.name || u.email}
+                      </Text>
+                      <Text style={styles.cardSubtitle}>{u.email}</Text>
                     </View>
-                    {idx < users.length - 1 ? (
-                      <View style={styles.divider} />
-                    ) : null}
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {(u.planName || "").toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
-                ))}
 
-                {users.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Ionicons name="person-outline" size={28} color="#9CA3AF" />
-                    <Text style={styles.emptyTitle}>Sem utilizadores</Text>
-                    <Text style={styles.emptyText}>
-                      Ajusta os filtros e tenta novamente.
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.pager}>
-                  <Pressable
-                    onPress={() => setUserPage((p) => Math.max(1, p - 1))}
-                    style={[
-                      styles.pagerBtn,
-                      userPage === 1 && styles.pagerBtnDisabled,
-                    ]}
-                    disabled={userPage === 1}
-                  >
-                    <Ionicons name="chevron-back" size={16} color="#111827" />
-                    <Text style={styles.pagerText}>Anterior</Text>
-                  </Pressable>
-
-                  <Text style={styles.pageText}>Página {userPage}</Text>
-
-                  <Pressable
-                    onPress={() => setUserPage((p) => p + 1)}
-                    style={[
-                      styles.pagerBtn,
-                      !hasMoreUsers && styles.pagerBtnDisabled,
-                    ]}
-                    disabled={!hasMoreUsers}
-                  >
-                    <Text style={styles.pagerText}>Seguinte</Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color="#111827"
+                  <View style={styles.cardActions}>
+                    <SelectInput
+                      label="Plano"
+                      options={planOptions}
+                      value={planSelection[u.id] ?? u.plan}
+                      onChange={(v) =>
+                        setPlanSelection((p) => ({ ...p, [u.id]: v }))
+                      }
                     />
-                  </Pressable>
+                    <Pressable
+                      style={styles.primaryBtn}
+                      disabled={updatingUserId === u.id}
+                      onPress={() =>
+                        updatePlan.mutate({
+                          userId: u.id,
+                          planCode: planSelection[u.id],
+                        })
+                      }
+                    >
+                      <Text style={styles.primaryBtnText}>
+                        {updatingUserId === u.id ? "A atualizar…" : "Atualizar"}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </>
-            ) : (
-              <>
-                {properties.map((p, idx) => (
-                  <View key={`p-${p.id ?? idx}`}>
-                    <Row
-                      leftIcon="home-outline"
-                      title={p.name || "Imóvel"}
-                      subtitle={p.streetName || p.id}
-                      badge={p.type ? String(p.type).toUpperCase() : undefined}
-                      onPress={() => {}}
-                    />
-                    {idx < properties.length - 1 ? (
-                      <View style={styles.divider} />
-                    ) : null}
+              ))
+            : properties.map((p) => (
+                <View key={p.id} style={styles.resultCard}>
+                  <View style={styles.cardHeader}>
+                    <Ionicons name="home-outline" size={20} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cardTitleText}>{p.name}</Text>
+                      <Text style={styles.cardSubtitle}>{p.streetName}</Text>
+                    </View>
+                    <View style={styles.badgeMuted}>
+                      <Text style={styles.badgeMutedText}>
+                        {String(p.type)}
+                      </Text>
+                    </View>
                   </View>
-                ))}
-
-                {properties.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Ionicons name="home-outline" size={28} color="#9CA3AF" />
-                    <Text style={styles.emptyTitle}>Sem imóveis</Text>
-                    <Text style={styles.emptyText}>
-                      Ajusta os filtros e tenta novamente.
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.pager}>
-                  <Pressable
-                    onPress={() => setPropertyPage((p) => Math.max(1, p - 1))}
-                    style={[
-                      styles.pagerBtn,
-                      propertyPage === 1 && styles.pagerBtnDisabled,
-                    ]}
-                    disabled={propertyPage === 1}
-                  >
-                    <Ionicons name="chevron-back" size={16} color="#111827" />
-                    <Text style={styles.pagerText}>Anterior</Text>
-                  </Pressable>
-
-                  <Text style={styles.pageText}>Página {propertyPage}</Text>
-
-                  <Pressable
-                    onPress={() => setPropertyPage((p) => p + 1)}
-                    style={[
-                      styles.pagerBtn,
-                      !hasMoreProperties && styles.pagerBtnDisabled,
-                    ]}
-                    disabled={!hasMoreProperties}
-                  >
-                    <Text style={styles.pagerText}>Seguinte</Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color="#111827"
-                    />
-                  </Pressable>
                 </View>
-              </>
-            )}
-          </Card>
+              ))}
         </View>
-
-        <View style={{ height: 18 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function Input({
+  placeholder,
+  value,
+  onChangeText,
+  icon,
+}: {
+  placeholder: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  icon?: any;
+}) {
+  return (
+    <View style={styles.inputWrap}>
+      {icon && <Ionicons name={icon} size={16} color="#6B7280" />}
+      <TextInput
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+        style={styles.input}
+        placeholderTextColor="#9CA3AF"
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F8FAFC" },
-  container: { padding: 16, paddingBottom: 24 },
+  container: { padding: 16, paddingBottom: 32 },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  loadingText: { color: "#6B7280", fontWeight: "800" },
+  loadingText: { fontWeight: "800", color: "#6B7280" },
 
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
-  },
-  screenTitle: { fontSize: 18, fontWeight: "900", color: "#111827" },
-  screenSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "700",
-  },
-
-  iconBtn: {
-    width: 40,
-    height: 40,
+  header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  backBtn: {
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    alignItems: "center",
-    justifyContent: "center",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: { elevation: 2 },
-    }),
-  },
-
-  segmentWrap: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    borderRadius: 16,
-    padding: 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  segmentBtn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 12,
+    backgroundColor: "#FFF",
     alignItems: "center",
     justifyContent: "center",
   },
-  segmentBtnActive: { backgroundColor: "#111827" },
-  segmentText: { fontSize: 13, fontWeight: "900", color: "#111827" },
-  segmentTextActive: { color: "#FFFFFF" },
+  title: { fontSize: 24, fontWeight: "900" },
+  subtitle: { color: "#6B7280", fontWeight: "700", marginTop: 4 },
 
-  sectionTitle: {
-    marginTop: 14,
-    marginBottom: 10,
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111827",
-  },
-
-  card: {
-    borderRadius: 18,
-    padding: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: { elevation: 2 },
-    }),
-  },
-
-  label: { fontSize: 12, fontWeight: "900", color: "#111827", marginBottom: 6 },
-
-  inputWrap: { position: "relative" },
-  inputIcon: {
-    position: "absolute",
-    left: 12,
-    top: 12,
-    width: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  input: {
-    backgroundColor: "#F3F4F6",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#111827",
-  },
-
-  filterActions: { flexDirection: "row", gap: 10, marginTop: 4 },
-  ghostBtn: {
+  tabs: { flexDirection: "row", gap: 10, marginTop: 20 },
+  tab: {
     flex: 1,
     height: 44,
     borderRadius: 14,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
   },
-  ghostBtnText: { fontWeight: "900", color: "#111827" },
+  tabActive: { backgroundColor: "#111827" },
+  tabText: { fontWeight: "900", color: "#111827" },
+  tabTextActive: { color: "#FFF" },
+
+  filterCard: {
+    marginTop: 20,
+    backgroundColor: "#FFF",
+    borderRadius: 18,
+    padding: 16,
+    gap: 10,
+  },
+
+  resultCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 18,
+    padding: 16,
+  },
+
+  cardHeader: { flexDirection: "row", gap: 12, alignItems: "center" },
+  cardTitleText: { fontWeight: "900", fontSize: 15 },
+  cardSubtitle: { color: "#6B7280", fontSize: 12 },
+
+  badge: {
+    backgroundColor: "#111827",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeText: { color: "#FFF", fontWeight: "900", fontSize: 11 },
+
+  badgeMuted: {
+    backgroundColor: "#E5E7EB",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgeMutedText: { fontWeight: "900", fontSize: 11 },
+
+  cardActions: { marginTop: 12, gap: 10 },
 
   primaryBtn: {
-    flex: 1,
     height: 44,
     borderRadius: 14,
     backgroundColor: "#111827",
     alignItems: "center",
     justifyContent: "center",
   },
-  primaryBtnText: { fontWeight: "900", color: "#FFFFFF" },
+  primaryBtnText: { color: "#FFF", fontWeight: "900" },
 
-  row: {
+  inputWrap: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-  },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: "#EEF2FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowTitle: { fontSize: 13, fontWeight: "900", color: "#111827" },
-  rowSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "700",
-  },
-  divider: { height: 1, backgroundColor: "#EEF2F7" },
-
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
+    gap: 8,
     backgroundColor: "#F3F4F6",
-  },
-  chipText: { fontSize: 12, fontWeight: "900", color: "#111827" },
-
-  emptyBox: { paddingVertical: 18, alignItems: "center", gap: 8 },
-  emptyTitle: { fontSize: 14, fontWeight: "900", color: "#111827" },
-  emptyText: { fontSize: 12, color: "#6B7280", fontWeight: "700" },
-
-  pager: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  pagerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    height: 40,
-    paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    height: 44,
+    alignItems: "center",
   },
-  pagerBtnDisabled: { opacity: 0.5 },
-  pagerText: { fontSize: 12, fontWeight: "900", color: "#111827" },
-  pageText: { fontSize: 12, fontWeight: "900", color: "#6B7280" },
+  input: { flex: 1, fontSize: 14 },
 });

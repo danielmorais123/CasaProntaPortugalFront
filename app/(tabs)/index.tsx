@@ -19,7 +19,6 @@ import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
 import { useQuery } from "@tanstack/react-query";
 import { LoadErrorScreen } from "@/components/StateScreens";
-// import { IslandDock } from "@/components/IslandDock";
 
 // function mapPathToDock(path: string) {
 //   if (path.startsWith("/profile")) return "profile";
@@ -383,7 +382,11 @@ export default function HomeScreen() {
               <PropertyMiniCard
                 key={p.id?.toString() ?? p.name}
                 p={p}
-                onPress={() => router.push(`/property/${p.id}`)}
+                onPress={() =>
+                  p.type === PropertyType.Building
+                    ? router.push(`/property/${p.id}/building`)
+                    : router.push(`/property/${p.id}`)
+                }
               />
             ))}
           </View>

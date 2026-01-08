@@ -157,7 +157,7 @@ export default function LoginScreen() {
           style={styles.bottomLink}
         >
           <Text style={styles.bottomText}>
-            Ainda não tem conta?{" "}
+            Ainda não tem conta?
             <Text style={styles.linkStrong}>Criar conta</Text>
           </Text>
         </Pressable>
