@@ -34,8 +34,8 @@ export default function AdminScreen() {
   const [userPlan, setUserPlan] = useState("");
   const [propertyQuery, setPropertyQuery] = useState("");
 
-  const [userPage, setUserPage] = useState(1);
-  const [propertyPage, setPropertyPage] = useState(1);
+  const [userPage] = useState(1);
+  const [propertyPage] = useState(1);
 
   const [planSelection, setPlanSelection] = useState<Record<string, string>>(
     {}
@@ -90,9 +90,9 @@ export default function AdminScreen() {
     }) => updateUserSubscription(planCode),
     onMutate: ({ userId }) => setUpdatingUserId(userId),
     onSettled: () => setUpdatingUserId(null),
-    onSuccess: () => {
-      refetchUsers();
-      queryClient.invalidateQueries({ queryKey: ["user"] });
+    onSuccess: async () => {
+      await refetchUsers();
+      await queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 
@@ -163,7 +163,7 @@ export default function AdminScreen() {
 
         {/* FILTER CARD */}
         <View style={styles.filterCard}>
-          <Text style={styles.cardTitle}>Filtros</Text>
+          <Text>Filtros</Text>
 
           {tab === "users" ? (
             <>

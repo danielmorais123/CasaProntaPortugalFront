@@ -1,6 +1,7 @@
-import { api } from "./api";
+import { api, API_URL } from "./api";
 import { Property, PagedPropertiesResponse } from "@/types/models";
-
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 // Get all properties (paged, accessible to the user)
 export const getAllProperties = async (page = 1, pageSize = 10) => {
   const response = await api.get("/property", {
@@ -48,3 +49,38 @@ export const getPagedProperties = async (params: {
   const response = await api.get("/property/paged", { params });
   return response.data;
 };
+// Download all documents for a property as a ZIP
+
+// export async function downloadAllDocumentsExpo(
+//   propertyId: string,
+//   safeName: string
+// ): Promise<string> {
+//   const url = `${API_URL}/properties/${propertyId}/download-all-documents`;
+
+//   const fileUri =
+//     FileSystem.cacheDirectory + `${safeName}-documentos.zip`;
+
+//   const downloadResumable = FileSystem.createDownloadResumable(
+//     url,
+//     fileUri,
+//     {
+//       // Cookies are sent automatically
+//       headers: {},
+//     }
+//   );
+
+//   const result = await downloadResumable.downloadAsync();
+
+//   if (!result || result.status !== 200) {
+//     throw new Error("Download failed");
+//   }
+
+//   if (await Sharing.isAvailableAsync()) {
+//     await Sharing.shareAsync(result.uri, {
+//       mimeType: "application/zip",
+//       dialogTitle: "Descarregar documentos",
+//     });
+//   }
+
+//   return result.uri;
+// }

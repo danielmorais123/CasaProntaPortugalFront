@@ -119,7 +119,7 @@ function BuildingCard({
         <Ionicons name="chevron-forward" size={18} color="#999" />
       </Pressable>
 
-      {building.units?.length > 0 && (
+      {Array.isArray(building.units) && building.units.length > 0 && (
         <View style={styles.unitsList}>
           {building.units.map((u) => (
             <Pressable
@@ -157,7 +157,7 @@ export default function PropertiesScreen() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const items = data ?? [];
+  const items = useMemo(() => data ?? [], [data]);
 
   const { buildings, standalone } = useMemo(() => {
     const buildings = items.filter((p) => p.type === 4);

@@ -14,13 +14,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 // If you have these helpers, use them. Otherwise replace with api.get in queryFn.
-import { api } from "@/hooks/services/api";
 // import { getDocumentById } from "@/hooks/services/documents"; // <- if exists
 import { LoadErrorScreen } from "@/components/StateScreens";
-import { getAllDocuments, getDocumentById } from "@/hooks/services/document";
+import { getDocumentById } from "@/hooks/services/document";
 
 if (
   Platform.OS === "android" &&
@@ -319,11 +318,11 @@ export default function DocumentDetailScreen() {
     queryKey: ["document", id],
     enabled: !!id,
     queryFn: async () => {
-      return await getDocumentById(id);
+      return await getDocumentById(id as string);
     },
     staleTime: 1000 * 60 * 2,
   });
-  console.log({ f: doc.extractionConfidence });
+  console.log({ f: doc });
   const onRefresh = async () => {
     await refetch();
   };
@@ -427,7 +426,7 @@ export default function DocumentDetailScreen() {
             </Text>
 
             <Text style={styles.heroSub} numberOfLines={2}>
-              {doc?.property.name ? `${doc.property.name} • ` : ""}
+              {doc?.property?.name ? `${doc.property.name} • ` : ""}
               {doc?.createdAt
                 ? `Upload: ${formatDateMaybe(doc.createdAt)}`
                 : "—"}

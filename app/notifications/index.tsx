@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -37,16 +37,12 @@ export default function NotificationsScreen() {
   };
 
   // Use alert?.type if available, otherwise fallback
-  const renderIcon = (notification: Notification) => {
-    const type = notification.alert?.type;
-    switch (type) {
-      case "document":
-        return "document-text-outline";
-      case "alert":
-        return "warning-outline";
-      default:
-        return "notifications-outline";
-    }
+  const renderIcon = (
+    notification: Notification
+  ): React.ComponentProps<typeof Ionicons>["name"] => {
+    // const type = notification.alert?.type;
+
+    return "warning-outline";
   };
 
   const renderItem = ({ item }: { item: Notification }) => {

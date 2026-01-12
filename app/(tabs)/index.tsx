@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { api } from "@/hooks/services/api";
 import { Property, PropertyType } from "@/types/models";
 import { useRouter } from "expo-router";
 import { Alert as AlertComponent } from "@/components/Alert";
@@ -19,6 +18,7 @@ import { AuthContext } from "@/context/AuthContext";
 import { getAllProperties } from "@/hooks/services/property";
 import { useQuery } from "@tanstack/react-query";
 import { LoadErrorScreen } from "@/components/StateScreens";
+import { getUpcomingAlerts } from "@/hooks/services/alert";
 
 // function mapPathToDock(path: string) {
 //   if (path.startsWith("/profile")) return "profile";
@@ -176,10 +176,7 @@ export default function HomeScreen() {
     error: alertsError,
   } = useQuery({
     queryKey: ["alerts", 30],
-    queryFn: async () => {
-      const res = await api.get("/alerts/upcoming?days=30");
-      return res.data ?? [];
-    },
+    queryFn: async () => await getUpcomingAlerts(30),
     staleTime: 1000 * 60 * 2,
   });
 
@@ -343,8 +340,10 @@ export default function HomeScreen() {
                 <AlertComponent
                   title={a.message}
                   description={
-                    a.date
-                      ? `Data: ${new Date(a.date).toLocaleDateString("pt-PT")}`
+                    a.createdAt
+                      ? `Data: ${new Date(a.createdAt).toLocaleDateString(
+                          "pt-PT"
+                        )}`
                       : undefined
                   }
                   variant={"warning"}
@@ -598,13 +597,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  propertyName: { fontSize: 14, fontWeight: "900", color: "#111" },
-  propertyMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#666",
   },
 
   badge: {

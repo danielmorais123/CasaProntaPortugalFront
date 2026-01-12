@@ -1,4 +1,10 @@
 import { api } from "./api";
+import { Payment } from "@/types/models";
+
+export async function getMyPayments(): Promise<Payment[]> {
+  const res = await api.get<Payment[]>("/payments/my");
+  return res.data;
+}
 
 export const openBillingPortal = async (userEmail: string) => {
   const res = await api.post("/payments/billing-portal", userEmail, {

@@ -259,11 +259,29 @@ export default function ProfileScreen() {
           ) : null}
 
           <View style={{ height: 12 }} />
-          <Button
-            title="Ver Planos"
-            variant="gold"
-            onPress={() => router.push("/profile/plans-help")}
-          />
+          <View style={{ height: 16 }} />
+
+          <Text style={styles.sectionLabel}>Gestão da subscrição</Text>
+
+          <View style={styles.billingActionsRow}>
+            <BillingLink
+              icon="diamond-outline"
+              label="Plano"
+              onPress={() => router.push("/profile/plans-help")}
+            />
+
+            <BillingLink
+              icon="add-circle-outline"
+              label="Add-ons"
+              onPress={() => router.push("/profile/add-ons")}
+            />
+
+            <BillingLink
+              icon="card-outline"
+              label="Pagamentos"
+              onPress={() => router.push("/payments/my-payments")}
+            />
+          </View>
         </View>
 
         {/* Profile details */}
@@ -455,9 +473,62 @@ function ActionRow({
   );
 }
 
+function BillingLink({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: any;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.billingLink}>
+      <View style={styles.billingLinkIcon}>
+        <Ionicons name={icon} size={18} color="#2563EB" />
+      </View>
+
+      <Text style={styles.billingLinkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /* ------------------------------- Styles ------------------------------- */
 
 const styles = StyleSheet.create({
+  billingActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  billingLink: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
+  billingLinkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+
+  billingLinkText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
   container: {
     padding: 18,
     paddingBottom: 28,
@@ -822,252 +893,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#B91C1C",
     fontWeight: "700",
-  },
-});
-
-/* ---------------------- Sheet Styles ---------------------- */
-const sheet = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 9999,
-    elevation: 9999,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#0B1220",
-  },
-  sheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === "ios" ? 22 : 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-  grabber: {
-    alignSelf: "center",
-    width: 48,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    marginBottom: 10,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  closeBtnText: {
-    fontSize: 16,
-    color: "#0F172A",
-  },
-  subtitle: {
-    marginTop: 6,
-    marginBottom: 12,
-    color: "#64748B",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  loadingBox: {
-    paddingVertical: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "700",
-  },
-
-  planCard: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 16,
-    padding: 14,
-    backgroundColor: "#FFFFFF",
-  },
-  planCardSelected: {
-    borderColor: "#2563EB",
-    backgroundColor: "#F8FAFF",
-  },
-  planTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  planNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  planName: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#0F172A",
-  },
-  planPrice: {
-    marginTop: 2,
-    fontSize: 13,
-    color: "#0F172A",
-    fontWeight: "900",
-  },
-  planDesc: {
-    marginTop: 4,
-    fontSize: 12,
-    color: "#64748B",
-    lineHeight: 16,
-  },
-
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: "#DBEAFE",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#1D4ED8",
-  },
-  currentPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: "#ECFDF5",
-    borderWidth: 1,
-    borderColor: "#A7F3D0",
-  },
-  currentPillText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#047857",
-  },
-
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  radioOuterSelected: {
-    borderColor: "#2563EB",
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: "#2563EB",
-  },
-
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 10,
-  },
-  metaText: {
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: "800",
-  },
-  metaStrong: {
-    color: "#0F172A",
-    fontWeight: "900",
-  },
-  metaDot: {
-    color: "#CBD5E1",
-    fontWeight: "900",
-  },
-  metaAi: {
-    fontSize: 12,
-    color: "#2563EB",
-    fontWeight: "900",
-  },
-
-  featureBlock: {
-    gap: 6,
-  },
-  feature: {
-    fontSize: 12,
-    color: "#334155",
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-  excluded: {
-    fontSize: 12,
-    color: "#94A3B8",
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-
-  actions: {
-    marginTop: 12,
-  },
-  linkBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  linkBtnText: {
-    color: "#0F172A",
-    fontWeight: "900",
-    fontSize: 12,
-  },
-  primaryBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryBtnDisabled: {
-    opacity: 0.55,
-  },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
-  footnote: {
-    marginTop: 10,
-    fontSize: 11,
-    color: "#94A3B8",
-    lineHeight: 16,
   },
 });

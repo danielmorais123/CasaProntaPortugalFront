@@ -199,7 +199,7 @@ function FieldRow({
   const icon = fieldIcon(k);
   const hasValue = !!value?.trim();
 
-  const status = hasValue ? "filled" : "empty";
+  // const status = hasValue ? "filled" : "empty";
 
   return (
     <View style={styles.fieldCard}>
@@ -288,7 +288,7 @@ export default function DocumentAiFieldsEditScreen() {
   console.log("Document data:", docQuery.data);
   const extractedFromDoc = useMemo(() => {
     const f =
-      docQuery.data?.extractedFields ?? docQuery.data?.ExtractedFields ?? null;
+      docQuery.data?.extractedFields ?? docQuery.data?.extractedFields ?? null;
     return (f ?? {}) as Record<string, string>;
   }, [docQuery.data]);
 
@@ -300,11 +300,7 @@ export default function DocumentAiFieldsEditScreen() {
     initializedRef.current = true;
     setLocalFields(extractedFromDoc || {});
     // se tiveres confidence guardado no doc, usa-o; senão, 0
-    const c =
-      docQuery.data?.aiConfidence ??
-      docQuery.data?.AiConfidence ??
-      docQuery.data?.confidence ??
-      0;
+    const c = docQuery.data?.extractionConfidence ?? 0;
     setConfidence(typeof c === "number" ? c : 0);
   }, [docQuery.data, extractedFromDoc]);
 
@@ -414,11 +410,7 @@ export default function DocumentAiFieldsEditScreen() {
     );
   }
 
-  const docName =
-    docQuery.data?.title ??
-    docQuery.data?.name ??
-    docQuery.data?.fileName ??
-    "Campos do documento";
+  const docName = docQuery.data?.originalFileName;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>

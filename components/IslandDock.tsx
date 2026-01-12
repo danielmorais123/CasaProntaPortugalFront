@@ -29,7 +29,7 @@ export function BottomIslandNav() {
           return (
             <Pressable
               key={item.key}
-              onPress={() => router.push(item.route)}
+              onPress={() => router.push(item.route as any)}
               style={[styles.iconBtn, active && styles.iconBtnActive]}
             >
               <Ionicons

@@ -8,7 +8,7 @@ const MAC_API_URL =
 const WINDOWS_API_URL =
   process.env.WINDOWS_API_URL ?? "https://c15gz92t-5084.uks1.devtunnels.ms/api";
 
-const API_URL = MAC_API_URL;
+export const API_URL = MAC_API_URL;
 
 export const api = axios.create({
   baseURL: API_URL,

@@ -1,4 +1,4 @@
-import { SubscriptionPlanDto } from "@/types/models";
+import { SubscriptionPlanDto, Subscription } from "@/types/models";
 import { api } from "./api";
 
 export const getPlans = async (): Promise<SubscriptionPlanDto[]> => {
@@ -13,11 +13,13 @@ export const getPlanByCode = async (
   return res.data;
 };
 
-export const getCurrentUserSubscription =
-  async (): Promise<SubscriptionPlanDto> => {
-    const res = await api.get("/subscriptions/current");
-    return res.data;
-  };
+export const getCurrentUserSubscription = async (): Promise<{
+  subscription: Subscription;
+  plan: SubscriptionPlanDto;
+}> => {
+  const res = await api.get("/subscriptions/current");
+  return res.data as { subscription: Subscription; plan: SubscriptionPlanDto };
+};
 export const updateUserSubscription = async (planCode: string) => {
   const res = await api.post("/subscriptions/update", { planCode });
   return res.data;

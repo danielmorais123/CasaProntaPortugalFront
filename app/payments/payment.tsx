@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { api } from "@/hooks/services/api";
 import { AuthContext } from "@/context/AuthContext";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { Button } from "@/components/Button";
 
 export default function PaymentScreen() {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
@@ -38,26 +36,30 @@ export default function PaymentScreen() {
   }, [user, planCode]);
 
   // Detect Stripe redirect
-  const handleNavigationStateChange = (navState: any) => {
+  const handleNavigationStateChange = async (navState: any) => {
     console.log({ navState });
     if (handled.current) return;
     if (
       navState.url.includes("property") // success URL
     ) {
       handled.current = true;
-      queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.refetchQueries({ queryKey: ["user"] });
+
       router.replace("/profile");
     }
     if (
       navState.url.startsWith("payment") // cancel URL
     ) {
       handled.current = true;
-      queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.refetchQueries({ queryKey: ["user"] });
       router.push("/payments/payment-error");
     }
     if (navState.url.startsWith("http://192.168.8.100:8081/")) {
       handled.current = true;
-      queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.invalidateQueries({ queryKey: ["user"] }); // <-- invalidate user cache
+      await queryClient.refetchQueries({ queryKey: ["user"] });
       router.replace("/profile");
     }
   };

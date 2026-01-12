@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   Text,
@@ -7,22 +7,22 @@ import {
   RefreshControl,
   Pressable,
   ActivityIndicator,
+  Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Document,
   Alert as AlertModel,
   PermissionLevel,
   PropertyType,
-  Property,
 } from "@/types/models";
 import { getPropertyById } from "@/hooks/services/property";
 import { AuthContext } from "@/context/AuthContext";
-import { canEditProperty, canShareProperty } from "@/utils/permissions";
+import { canEditProperty } from "@/utils/permissions";
 import { useQuery } from "@tanstack/react-query";
-
+import * as FileSystem from "expo-file-system";
 /* ---------------------------------- */
 /* Helpers                            */
 /* ---------------------------------- */
@@ -47,17 +47,16 @@ function StatTile({ label, value }: { label: string; value: string }) {
 function formatDateMaybe(iso?: string) {
   if (!iso) return "";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("pt-PT");
 }
 
 function permissionLabel(level: PermissionLevel) {
   switch (level) {
-    case "Admin":
+    case PermissionLevel.Admin:
       return "Admin";
-    case "Read":
+    case PermissionLevel.Read:
       return "Leitura";
-    case "Temporary":
+    case PermissionLevel.Temporary:
       return "Temporário";
     default:
       return "—";
@@ -68,28 +67,28 @@ function permissionLabel(level: PermissionLevel) {
 /* Rows                               */
 /* ---------------------------------- */
 
-function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <View style={styles.rowIcon}>
-        <Ionicons name="document-text-outline" size={18} />
-      </View>
+// function DocumentRow({ d, onPress }: { d: Document; onPress: () => void }) {
+//   return (
+//     <Pressable onPress={onPress} style={styles.row}>
+//       <View style={styles.rowIcon}>
+//         <Ionicons name="document-text-outline" size={18} />
+//       </View>
 
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          Documento
-        </Text>
-        <Text style={styles.rowSubtitle} numberOfLines={1}>
-          {d.expirationDate
-            ? `Validade: ${formatDateMaybe(d.expirationDate)}`
-            : "Sem validade"}
-        </Text>
-      </View>
+//       <View style={{ flex: 1 }}>
+//         <Text style={styles.rowTitle} numberOfLines={1}>
+//           Documento
+//         </Text>
+//         <Text style={styles.rowSubtitle} numberOfLines={1}>
+//           {d.expirationDate
+//             ? `Validade: ${formatDateMaybe(d.expirationDate)}`
+//             : "Sem validade"}
+//         </Text>
+//       </View>
 
-      <Text style={styles.rowChevron}>›</Text>
-    </Pressable>
-  );
-}
+//       <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+//     </Pressable>
+//   );
+// }
 
 function AlertRow({ a }: { a: AlertModel }) {
   return (
@@ -103,7 +102,7 @@ function AlertRow({ a }: { a: AlertModel }) {
           {a.message}
         </Text>
         <Text style={styles.rowSubtitle}>
-          {a.date ? formatDateMaybe(a.date) : "—"}
+          {a.createdAt ? formatDateMaybe(a.createdAt) : "—"}
         </Text>
       </View>
     </View>
@@ -119,19 +118,51 @@ export default function PropertyDetailScreen() {
   const { user } = useContext(AuthContext);
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  const [downloading, setDownloading] = useState(false);
+  console.log({ FileSystem });
   const {
     data: item,
     isLoading,
     isFetching,
     refetch,
-    error,
   } = useQuery({
     queryKey: ["property", id],
     queryFn: () => getPropertyById(id!),
     enabled: !!id,
   });
 
-  if (isLoading || isFetching) {
+  const handleDownloadAll = async () => {
+    if (!item) return;
+
+    try {
+      setDownloading(true);
+
+      const safeName = item.name.replace(/\s+/g, "_");
+
+      // WEB → keep existing behavior
+      if (Platform.OS === "web") {
+        await downloadAllDocuments(item.id, safeName);
+        return;
+      }
+
+      // MOBILE → native filesystem download
+      // const filePath = await downloadAllDocuments(item.id, safeName);
+      // console.log("File downloaded to:", filePath);
+      Alert.alert(
+        "Download concluído",
+        Platform.OS === "ios"
+          ? "O ficheiro foi guardado na app."
+          : "O ficheiro foi guardado em Downloads."
+      );
+    } catch (e) {
+      console.error("Erro ao descarregar documentos:", e);
+      Alert.alert("Erro", "Não foi possível descarregar os documentos.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (isLoading || isFetching || !item) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
@@ -142,28 +173,12 @@ export default function PropertyDetailScreen() {
     );
   }
 
-  if (error || !item) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text style={styles.title}>Imóvel não encontrado</Text>
-          <Pressable onPress={() => router.back()} style={styles.primaryCta}>
-            <Text style={styles.primaryCtaText}>Voltar</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const isBuilding = item.type === PropertyType.Building;
-
   const docs = item.documents ?? [];
   const alerts = item.alerts ?? [];
   const permissions = item.permissions ?? [];
-  const units: Property[] = item.units ?? [];
-
+  // const units: Property[] = item.units ?? [];
+  const isBuilding = item.type === PropertyType.Building;
   const canManage = canEditProperty(user, item);
-  const canShare = canShareProperty(user, item);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -186,6 +201,7 @@ export default function PropertyDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/property/[id]/documents",
+                //@ts-ignore
                 params: {
                   propertyId: item.id,
                   propertyType: item.type.toString(),
@@ -196,92 +212,51 @@ export default function PropertyDetailScreen() {
             <Ionicons name="folder-outline" size={18} />
           </Pressable>
         </View>
-
         <Text style={styles.title}>{item.name}</Text>
         <Text style={styles.subtitle}>{item.streetName || "—"}</Text>
-
         <View style={styles.pillsRow}>
           <Pill text={`${docs.length} docs`} />
           <Pill text={`${alerts.length} alertas`} />
-          <Pill text={`${permissions.length} partilhas`} />
-          {isBuilding && <Pill text="Prédio / Condomínio" />}
+          <Pill text={`${permissions.length} acessos`} />
+          {isBuilding && <Pill text="Prédio" />}
         </View>
-
         <View style={styles.statsRow}>
           <StatTile label="Documentos" value={`${docs.length}`} />
           <StatTile label="Alertas" value={`${alerts.length}`} />
           <StatTile label="Acessos" value={`${permissions.length}`} />
         </View>
+        {/* DOWNLOAD CARD */}
+        {docs.length > 0 && (
+          <Pressable
+            style={styles.downloadCard}
+            onPress={handleDownloadAll}
+            disabled={downloading}
+          >
+            <View style={styles.downloadIcon}>
+              <Ionicons name="download-outline" size={22} color="#2563EB" />
+            </View>
 
-        {/* ================= PRÉDIO ================= */}
-        {isBuilding && (
-          <>
-            <Text style={styles.sectionTitle}>Frações</Text>
-            {units.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Text style={styles.emptyTitle}>Sem frações</Text>
-                <Text style={styles.emptyText}>
-                  Este prédio ainda não tem frações associadas.
-                </Text>
-                <Pressable
-                  style={styles.primaryCta}
-                  onPress={() => router.push(`/property/${id}/add-unit`)}
-                >
-                  <Text style={styles.primaryCtaText}>Adicionar fração</Text>
-                </Pressable>
-              </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.downloadTitle}>
+                Descarregar todos os documentos
+              </Text>
+              <Text style={styles.downloadSubtitle}>
+                ZIP com todos os documentos deste imóvel
+              </Text>
+            </View>
+
+            {downloading ? (
+              <ActivityIndicator />
             ) : (
-              <View style={styles.list}>
-                {units.map((u) => (
-                  <Pressable
-                    key={u.id}
-                    style={styles.row}
-                    onPress={() => router.push(`/property/${u.id}`)}
-                  >
-                    <View style={styles.rowIcon}>
-                      <Ionicons name="business-outline" size={18} />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{u.name}</Text>
-                      <Text style={styles.rowSubtitle}>
-                        {u.documents?.length ?? 0} docs •{u.alerts?.length ?? 0}{" "}
-                        alertas
-                      </Text>
-                    </View>
-
-                    <Text style={styles.rowChevron}>›</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             )}
-
-            <Text style={styles.sectionTitle}>Documentos do edifício</Text>
-            <Text style={styles.helperText}>
-              Partes comuns, condomínio, seguros, atas, etc.
-            </Text>
-          </>
+          </Pressable>
         )}
-
-        {/* ================= DOCUMENTOS ================= */}
-        <View style={styles.list}>
-          {docs.map((d) => (
-            <DocumentRow
-              key={d.id}
-              d={d}
-              onPress={() =>
-                router.push(`/property/${item.id}/documents/${d.id}`)
-              }
-            />
-          ))}
-        </View>
-
-        {/* ================= ALERTAS ================= */}
+        {/* DOCUMENTOS */}
+        {/* ALERTAS */}
         <Text style={styles.sectionTitle}>Alertas</Text>
         {alerts.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>Sem alertas ativos.</Text>
-          </View>
+          <Text style={styles.helperText}>Sem alertas ativos.</Text>
         ) : (
           <View style={styles.list}>
             {alerts.map((a) => (
@@ -289,48 +264,34 @@ export default function PropertyDetailScreen() {
             ))}
           </View>
         )}
-
-        {/* ================= PARTILHAS ================= */}
-        <Text style={styles.sectionTitle}>
-          {isBuilding ? "Acessos ao edifício" : "Partilhas"}
-        </Text>
-
-        {permissions.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>
-              Ainda não existem permissões atribuídas.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.list}>
-            {permissions.map((p) => (
-              <View key={p.id} style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="people-outline" size={18} />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>
-                    {p.user?.email ?? "Utilizador"}
-                  </Text>
-                  <Text style={styles.rowSubtitle}>
-                    {permissionLabel(p.permissionLevel)}
-                  </Text>
-                </View>
+        {/* PARTILHAS */}
+        <Text style={styles.sectionTitle}>Acessos</Text>
+        <View style={styles.list}>
+          {permissions.map((p) => (
+            <View key={p.id} style={styles.row}>
+              <View style={styles.rowIcon}>
+                <Ionicons name="people-outline" size={18} />
               </View>
-            ))}
-          </View>
-        )}
 
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>
+                  {p.user?.email ?? "Utilizador"}
+                </Text>
+                <Text style={styles.rowSubtitle}>
+                  {permissionLabel(p.permissionLevel)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
         {canManage && (
           <Pressable
             style={styles.secondaryCta}
             onPress={() => router.push(`/property/${item.id}/share`)}
           >
-            <Text style={styles.secondaryCtaText}>Gerir partilhas</Text>
+            <Text style={styles.secondaryCtaText}>Gerir acessos</Text>
           </Pressable>
         )}
-
         <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
@@ -375,6 +336,28 @@ const styles = StyleSheet.create({
   statValue: { color: "#fff", fontSize: 18, fontWeight: "900" },
   statLabel: { color: "#CFCFCF", fontSize: 12, fontWeight: "800" },
 
+  downloadCard: {
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  downloadIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#DBEAFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  downloadTitle: { fontWeight: "900", fontSize: 14 },
+  downloadSubtitle: { fontSize: 12, color: "#475569" },
+
   sectionTitle: {
     marginTop: 18,
     marginBottom: 6,
@@ -405,26 +388,6 @@ const styles = StyleSheet.create({
   },
   rowTitle: { fontSize: 14, fontWeight: "900" },
   rowSubtitle: { fontSize: 12, color: "#666", fontWeight: "700" },
-  rowChevron: { fontSize: 20, fontWeight: "900", color: "#999" },
-
-  emptyBox: {
-    borderWidth: 1,
-    borderColor: "#EAEAEA",
-    borderRadius: 16,
-    padding: 14,
-    backgroundColor: "#FAFAFA",
-  },
-  emptyTitle: { fontWeight: "900", marginBottom: 4 },
-  emptyText: { color: "#555", fontSize: 13 },
-
-  primaryCta: {
-    marginTop: 12,
-    backgroundColor: "#111",
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  primaryCtaText: { color: "#fff", fontWeight: "900" },
 
   secondaryCta: {
     marginTop: 16,

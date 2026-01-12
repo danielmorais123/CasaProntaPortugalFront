@@ -165,31 +165,87 @@ export interface User {
   role?: UserRole; // <-- add this line
 }
 
+export enum AlertType {
+  DocumentExpired,
+  DocumentExpiringSoon,
+  MissingRequiredDocument,
+  DocumentUnreadable,
+  AiReviewRequired,
+  AiLowConfidence,
+  DataConflictDetected,
+  PaymentDue,
+  PaymentFailed,
+  SubscriptionRenewal,
+  SubscriptionLimitReached,
+  InspectionDue,
+  WarrantyExpiring,
+  InsuranceExpired,
+  SecurityAlert,
+  SharedAccessExpiring,
+  ManualReminder,
+  Other,
+}
+
+export enum AlertSource {
+  System,
+  AI,
+  User,
+}
+
+export enum AlertSeverity {
+  Critical,
+  Important,
+  Info,
+  Success,
+}
+
+export enum AlertStatus {
+  Pending,
+  Active,
+  Snoozed,
+  Resolved,
+  Dismissed,
+}
+
 export interface Alert {
   id: string;
-  type: string;
-  source?: number | string;
-  title?: string;
-  message: string;
-  date?: string;
-  triggerDate?: string;
-  status?: number | string;
-  createdAt?: string;
-  triggeredAt?: string;
-  dismissedAt?: string;
+  userId: string;
+  user: User;
+  propertyId?: string;
+  property?: Property;
   documentId?: string;
   document?: Document;
-  propertyId: string;
-  property?: Property;
-  userId?: string;
-  user?: User;
+  type: AlertType;
+  source: AlertSource;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  triggerDate: string;
+  triggeredAt?: string;
+  expiresAt?: string;
+  snoozedUntil?: string;
+  requiresAction: boolean;
+  status: AlertStatus;
+  relatedEntityId?: string;
+  relatedEntityType?: string;
+  createdAt: string;
+  dismissedAt?: string;
+}
+
+export enum PaymentStatus {
+  Pending,
+  Paid,
+  Failed,
+  Canceled,
+  Refunded,
+  Unpaid,
 }
 
 export interface Payment {
   id: string;
   amount: number;
   currency: string;
-  status: string;
+  status: PaymentStatus; // <-- use the enum here
   stripePaymentId: string;
   subscriptionId: string;
   userId: string;
@@ -197,23 +253,36 @@ export interface Payment {
   paidAt?: string;
 }
 
+export enum SubscriptionPlan {
+  Free,
+  Starter,
+  Pro,
+  Business,
+  Portfolio,
+  Enterprise,
+}
+
+export enum SubscriptionStatus {
+  Active,
+  Canceled,
+  PastDue,
+}
+
 export interface Subscription {
   id: string;
-  plan: number | string;
-  status: number | string;
-  stripeSubscriptionId?: string;
   userId: string;
+  user?: User;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  stripeSubscriptionId?: string;
   startedAt: string;
   endsAt?: string;
   createdAt: string;
-  addons?: SubscriptionAddon[];
+  addons: SubscriptionAddon[];
+  aiAnalyses?: any[];
 }
 export enum AddonType {
-  ExtraIA,
-  LegalVault,
-  ExtraFractions,
   ExtraBuildings,
-  ExtraUnitsPerBuilding,
   ExtraAiDocs,
   ExtraDocuments,
   ExtraGuests,

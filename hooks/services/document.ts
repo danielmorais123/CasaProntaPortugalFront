@@ -19,21 +19,36 @@ export const createDocument = async (document: any): Promise<Document> => {
   return response.data;
 };
 
+// Upload a document via backend (multipart/form-data)
+export const uploadDocument = async (formData: FormData): Promise<Document> => {
+  const response = await api.post<Document>("/document/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return response.data;
+};
+
 // Generate a pre-signed upload URL
 export const generateUploadUrl = async (
   payload: any
-): Promise<{ url: string }> => {
-  const response = await api.post<{ url: string }>(
-    "/document/upload-url",
-    payload
-  );
+): Promise<{
+  uploadUrl: string;
+  s3Key: string;
+  documentId: string;
+  downloadUrl: string;
+}> => {
+  const response = await api.post<{
+    uploadUrl: string;
+    s3Key: string;
+    documentId: string;
+    downloadUrl: string;
+  }>("/document/upload-url", payload);
   return response.data;
 };
 
 // Confirm upload
 export const confirmUpload = async (
   id: string,
-  payload: any
+  payload: { documentId: string; uploadSuccessful: boolean }
 ): Promise<{ message: string; document: Document }> => {
   const response = await api.post<{ message: string; document: Document }>(
     `/document/${id}/confirm-upload`,
@@ -69,7 +84,7 @@ export const deleteDocument = async (id: string): Promise<void> => {
 export const getSuggestionsByPropertyType = async (
   type: PropertyType
 ): Promise<DocumentType[]> => {
-  const response = await api.get<number[]>(
+  const response = await api.get<DocumentType[]>(
     `/document/suggestions/by-property-type/${type}`
   );
   return response.data;
@@ -79,7 +94,7 @@ export const getSuggestionsByPropertyType = async (
 export const getSuggestionsByScope = async (
   scope: string
 ): Promise<DocumentType[]> => {
-  const response = await api.get<number[]>(
+  const response = await api.get<DocumentType[]>(
     `/document/suggestions/by-scope/${scope}`
   );
   return response.data;
@@ -92,5 +107,28 @@ export const getDocumentsByPropertyId = async (
   const response = await api.get<Document[]>(
     `/document/by-property/${propertyId}`
   );
+  return response.data;
+};
+
+// AI Extraction: POST /document/:id/ai-extraction
+export const extractFieldsWithAI = async (
+  id: string
+): Promise<{ fields: Record<string, string>; confidence: number }> => {
+  const response = await api.post<{
+    fields: Record<string, string>;
+    confidence: number;
+  }>(`/document/${id}/ai-extraction`);
+  return response.data;
+};
+
+// AI Fields Update: PATCH /document/:id/ai-fields
+export const updateAIFields = async (
+  id: string,
+  fields: Record<string, string>
+): Promise<{ message: string; fields: Record<string, string> }> => {
+  const response = await api.patch<{
+    message: string;
+    fields: Record<string, string>;
+  }>(`/document/${id}/ai-fields`, { fields });
   return response.data;
 };
